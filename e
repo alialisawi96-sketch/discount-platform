@@ -1,0 +1,2 @@
+[35mnode_modules/googleapis/build/src/apis/contentwarehouse/v1.d.ts[m[36m:[m[32m16857[m[36m:[m         * Whether page-level text confidences and other summary data were computed by PostOcrUtils instead of the [1;31mnow-[mobsolete GarbageTextDetector
+[35mnode_modules/uuid/README.md[m[36m:[m[32m423[m[36m:[mDeep requires like `require('uuid/v4')` [which have been deprecated in `uuid@7`](#deep-requires-[1;31mnow-[mdeprecated) are no longer supported.
