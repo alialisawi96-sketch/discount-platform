@@ -1,7 +1,2 @@
-{
-  "functions": { "api/**/*.js": { "runtime": "nodejs20.x" } },
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
-}
+git rm -f now.json 2>NUL
+git rm -f vercel.json 2>NUL
