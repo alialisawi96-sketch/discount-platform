@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>منصة الخصومات</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b1020; --bg2:#0e1530; --muted:#94a3b8; --text:#e2e8f0;
+      --pri:#6366f1; --pri-700:#494ce0; --ok:#10b981; --err:#ef4444;
+      --ring: rgba(99,102,241,.35); --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 14px;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{
+      margin:0; font-family:"Cairo",system-ui,Segoe UI,Roboto,Arial; color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 100% -20%, #1a1f4b 0%, transparent 60%),
+        radial-gradient(1000px 700px at -10% 120%, #0e6ba8 0%, transparent 60%),
+        linear-gradient(180deg,var(--bg),var(--bg2));
+    }
+    .container{ max-width:1100px; margin:0 auto; padding:28px; }
+    .header{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    .brand{ display:flex; align-items:center; gap:12px; }
+    .logo{ width:44px; height:44px; border-radius:12px; background:linear-gradient(145deg,#6d72ff,#3b82f6); display:grid; place-items:center; color:#fff; font-weight:700; box-shadow:var(--shadow);}
+    .title{font-size:28px; font-weight:800; letter-spacing:.3px}
+    .sub{color:var(--muted); font-size:14px}
+
+    .card{ background:rgba(16,25,54,.7); backdrop-filter: blur(8px); border:1px solid rgba(255,255,255,.06); border-radius:var(--radius); box-shadow:var(--shadow); }
+    .grid{display:grid; gap:18px}
+    @media (min-width:900px){ .grid{ grid-template-columns: 1fr; } }
+
+    .toast{ position:fixed; inset-inline-start:50%; top:18px; transform:translateX(-50%); min-width:280px; max-width:92vw; padding:12px 14px; border-radius:12px; display:none; font-weight:600; box-shadow:var(--shadow); z-index:60; }
+    .toast.ok{ background:rgba(16,185,129,.15); color:#86efac; border:1px solid rgba(16,185,129,.35)}
+    .toast.err{ background:rgba(239,68,68,.15); color:#fecaca; border:1px solid rgba(239,68,68,.35)}
+
+    /* Hero */
+    .hero {
+      display:none; gap:14px; align-items:center; margin-bottom:18px;
+      padding:16px; border:1px solid rgba(255,255,255,.06);
+      background:linear-gradient(180deg,rgba(20,28,58,.8),rgba(16,22,45,.8));
+      border-radius:16px; box-shadow: var(--shadow);
+    }
+    .hero .avatar{
+      width:64px; height:64px; border-radius:50%;
+      display:grid; place-items:center; font-weight:800; font-size:20px;
+      background:linear-gradient(145deg,#6d72ff,#3b82f6); color:#fff;
+      border:2px solid rgba(255,255,255,.15);
+    }
+    .hero .info{flex:1}
+    .hero .name{font-size:20px; font-weight:800; margin:0 0 4px}
+    .hero .meta{color:var(--muted); font-size:13px; display:flex; gap:14px; flex-wrap:wrap}
+    .hero .pill{
+      padding:8px 12px; border-radius:999px; background:rgba(16,185,129,.12);
+      border:1px solid rgba(16,185,129,.35); color:#a7f3d0; font-weight:800; font-size:13px;
+    }
+
+    /* Merchants */
+    .list{ padding:18px }
+    .list-head{display:flex;justify-content:space-between;align-items:center;margin:0 4px 10px}
+    .filters{display:flex; gap:10px; align-items:center; flex-wrap: wrap;}
+    .filters select,.filters input{
+      padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.05);
+      color:var(--text); border:1px solid rgba(255,255,255,.1); outline:none;
+    }
+    .filters input:focus,.filters select:focus{ box-shadow:0 0 0 6px var(--ring); border-color:var(--pri); }
+    .btn{ padding:10px 14px; border:none; border-radius:10px; cursor:pointer; font-weight:700; background:linear-gradient(135deg,var(--pri),var(--pri-700)); color:#fff; transition: transform .05s ease }
+    .btn:active{ transform:translateY(1px) }
+
+    .merchants{ display:grid; gap:14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+    .merchant{
+      position:relative; padding:16px; padding-inline-start:72px;
+      border:1px solid rgba(255,255,255,.06);
+      background:linear-gradient(180deg,rgba(20,28,58,.85),rgba(16,22,45,.85));
+      border-radius:12px; overflow:hidden; outline:1px solid transparent; transition: transform .15s, outline-color .2s;
+    }
+    .merchant:hover{ transform: translateY(-1px); outline-color: rgba(99,102,241,.35); }
+    .m-title{ font-weight:800; font-size:16px; margin:0 0 6px }
+    .row{ display:flex; align-items:center; gap:10px; justify-content:space-between; }
+    .badge{ font-weight:800; padding:6px 10px; border-radius:999px; background:rgba(16,185,129,.12); color:#86efac; border:1px solid rgba(16,185,129,.3); font-size:13px; }
+    .meta{ font-size:13px; color:var(--muted); display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+    .merchant .logo{
+      position:absolute; inset-inline-start:14px; top:14px;
+      width:44px; height:44px; border-radius:12px; overflow:hidden;
+      background:rgba(255,255,255,.06); display:grid; place-items:center;
+      font-weight:800; color:#cbd5e1; border:1px solid rgba(255,255,255,.1);
+    }
+    .merchant .logo img{width:100%; height:100%; object-fit:cover; display:block}
+
+    .empty{ text-align:center; color:var(--muted); padding:26px }
+    #sentinel{ height: 1px; }
+
+    /* Modals */
+    .overlay{ position:fixed; inset:0; background:#0008; z-index:60; display:none; align-items:center; justify-content:center; padding:16px;}
+    .modal{ width:min(480px, 95vw); }
+    .muted{ color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <!-- زر تسجيل الخروج -->
+  <button id="logoutBtn" class="btn" style="position:fixed; top:14px; inset-inline-end:14px; z-index:40; display:none">تسجيل الخروج</button>
+
+  <!-- بوابة تسجيل الدخول -->
+  <div id="gate" class="overlay" style="display:flex;background:rgba(11,16,32,.96);">
+    <div class="card modal">
+      <div class="list-head" style="padding:20px 22px 4px"><h2 style="margin:0">تسجيل الدخول</h2></div>
+      <div style="padding: 0 22px 22px">
+        <div style="display:flex; gap:10px; align-items:center">
+          <input id="gateCode" placeholder="ادخل كود العميل" />
+          <button class="btn" id="gateLogin">دخول</button>
+        </div>
+        <div class="muted" style="font-size:13px;margin-top:8px">لن تتمكن من استخدام المنصة قبل تسجيل الدخول.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="logo">٪</div>
+        <div>
+          <div class="title">منصة الخصومات</div>
+          <div class="sub">سجّل دخولك وشوف المتاجر والخصومات المتاحة</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- هيدر العميل -->
+    <div id="hero" class="hero">
+      <div class="avatar" id="heroAvatar">👤</div>
+      <div class="info">
+        <div class="name" id="heroName">اسم العميل</div>
+        <div class="meta">
+          <span id="heroCode">كود: —</span>
+          <span id="heroPhone">هاتف: —</span>
+        </div>
+      </div>
+      <div class="pill" id="heroPoints">رصيدك: 0</div></div>
+    </div>
+
+    <div class="grid">
+      <!-- المتاجر -->
+      <div class="card list">
+        <div class="list-head">
+          <h2 style="margin:0">المتاجر</h2>
+          <div class="filters">
+            <input id="searchInput" placeholder="ابحث بالاسم..." />
+            <select id="filterType"><option value="">الكل</option></select>
+            <button class="btn" id="btnLoad">إعادة تحميل</button>
+            <button class="btn" id="openQR">سكان QR</button>
+          </div>
+        </div>
+        <div id="merchants" class="merchants"></div>
+        <div id="empty" class="empty" style="display:none">لا توجد متاجر حالياً.</div>
+        <div id="sentinel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال الاستفادة (Redeem) -->
+  <div id="redeemModal" class="overlay">
+    <div class="card modal">
+      <div style="padding:18px 22px">
+        <h3 style="margin:0 0 10px">احتساب الخصم</h3>
+        <div id="redeemMerchant" class="muted" style="margin-bottom:10px"></div>
+        <div style="display:flex; gap:10px; align-items:center">
+          <input id="billInput" type="number" min="0" placeholder="مبلغ الفاتورة" />
+          <button class="btn" id="calcBtn">احسب</button>
+        </div>
+        <div id="redeemPreview" style="margin-top:12px; display:none">
+          <div id="pvLine"></div>
+          <div>المبلغ الواجب دفعه: <b id="pvPayable">0</b></div>
+          <!-- تمت إزالة ملاحظة 500 د.ع = 1 نقطة -->
+        </div>
+        <div style="display:flex; gap:8px; margin-top:14px">
+          <button class="btn" id="confirmRedeem" disabled>تأكيد</button>
+          <button class="btn" style="background:#334155" id="closeRedeem">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال سكان QR -->
+  <div id="qrModal" class="overlay">
+    <div class="card modal">
+      <div style="padding:18px 22px">
+        <h3 style="margin:0 0 10px">سكان رمز QR</h3>
+        <div class="muted" style="font-size:13px;margin-bottom:10px">وجّه الكاميرا نحو الكود عند التاجر.</div>
+        <div id="qrReader" style="width:100%;"></div>
+        <div style="display:flex; gap:8px; margin-top:14px">
+          <button class="btn" id="closeQR" style="background:#334155">إغلاق</button>
+          <button class="btn" id="toggleTorch" style="display:none">تشغيل/إيقاف الفلاش</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مكتبة QR -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <script>
+    // ===== utils & toast =====
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg, type='ok')=>{
+      const el = $('toast'); el.className = 'toast '+type; el.textContent = msg;
+      el.style.display='block'; clearTimeout(el._t); el._t=setTimeout(()=> el.style.display='none', 2400);
+    };
+    const fmt = (n) => Number(n || 0).toLocaleString('ar-IQ');
+
+    // ===== session & points cache =====
+    const SESSION_KEY = 'session_client';
+    const getSession = () => localStorage.getItem(SESSION_KEY);
+    const setSession  = (c) => localStorage.setItem(SESSION_KEY, c);
+    const clearSession= () => localStorage.removeItem(SESSION_KEY);
+    window.currentPoints = 0;
+
+    function refreshGate() {
+      const logged = !!getSession();
+      $('gate').style.display = logged ? 'none' : 'flex';
+      $('logoutBtn').style.display = logged ? 'inline-block' : 'none';
+    }
+
+    // API wrapper
+    async function api(path, options = {}) {
+      options.headers = options.headers || {};
+      const s = getSession();
+      if (s) options.headers['x-client-code'] = s;
+      const res = await fetch(path, options);
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok) throw new Error(data.error || 'Server error');
+      return data;
+    }
+
+    // ===== hero helpers =====
+    function initials(name){
+      const parts = String(name||'').trim().split(/\s+/);
+      const a = (parts[0]||'').charAt(0);
+      const b = (parts[1]||'').charAt(0);
+      return (a+b || a || '؟').toUpperCase();
+    }
+    function renderHero({name, code, phone, points}){
+      $('heroName').textContent = name;
+      $('heroCode').textContent = `كود: ${code}`;
+      $('heroPhone').textContent = `هاتف: ${phone}`;
+      $('heroPoints').textContent = `نقاطك: ${Number(points||0).toLocaleString('ar-IQ')}`;
+      $('heroAvatar').textContent = initials(name);
+      $('hero').style.display = 'flex';
+      window.currentPoints = Math.floor(Number(points||0));
+    }
+
+    // ===== login flow =====
+    async function doLogin(code) {
+      const res = await fetch('/api/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ client_code: code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'فشل تسجيل الدخول');
+
+      setSession(code);
+      refreshGate();
+
+      const c = data.client || {};
+      renderHero({
+        name: c.name || '—',
+        code: c.client_code || code,
+        phone: c.phone || '—',
+        points: Number(c.points_balance ?? 0)
+      });
+
+      toast('تم تسجيل الدخول بنجاح');
+      loadMerchants(true).catch(e=> toast(e.message,'err'));
+    }
+
+    $('gateLogin').onclick = ()=>{
+      const code = $('gateCode').value.trim();
+      if (!code) return toast('يرجى إدخال كود العميل','err');
+      doLogin(code).catch(e=> toast(e.message,'err'));
+    };
+    $('logoutBtn').onclick = ()=>{
+      clearSession(); refreshGate();
+      $('hero').style.display='none';
+      $('merchants').innerHTML='';
+      disconnectObserver();
+      toast('تم تسجيل الخروج'); location.reload();
+    };
+
+    // ===== merchants with filters + infinite scroll =====
+    let _allMerchants = [];
+    let _cursor = 0;
+    const PAGE_SIZE = 10;
+    let _filterType = "";
+    let _searchQuery = "";
+
+    function merchantCard(m){
+      const isPercent = String(m.discount_type||'').toLowerCase()==='percent';
+      const badge = isPercent
+        ? `خصم ${m.discount_value}٪`
+        : `خصم ${fmt(m.discount_value||0)} دينار`;
+      const min = Number(m.min_bill||0);
+      const logo = String(m.logo_url || '').trim();
+      const fallback = `<span>${(m.name||'—').trim().slice(0,2)}</span>`;
+      const safeFallback = fallback.replace(/"/g,'&quot;');
+      const logoHtml = logo
+        ? `<img src="${logo}" alt="${m.name||''}" loading="lazy" onerror="this.parentElement.innerHTML='${safeFallback}'">`
+        : fallback;
+
+      return `
+        <div class="merchant">
+          <div class="logo">${logoHtml}</div>
+          <div class="row">
+            <div class="m-title">${m.name || '—'}</div>
+            <div class="badge">${badge}</div>
+          </div>
+          <div class="meta" style="margin-top:10px">
+            <span>🆔 ${m.merchant_code || ''}</span>
+            <span>📞 ${m.phone || '—'}</span>
+            ${min ? `<span>💵 حد أدنى: ${fmt(min)} د.ع</span>` : ''}
+          </div>
+          <div style="margin-top:10px">
+            <button class="btn btn-redeem" data-code="${m.merchant_code}">احتساب/تأكيد</button>
+          </div>
+        </div>`;
+    }
+
+    function norm(s){ return String(s||'').toLowerCase().trim(); }
+    function getTypeField(m){ return (m.category ?? m.Category ?? m.type ?? m.Type ?? '').toString().trim(); }
+
+    function getFilteredMerchants(){
+      const t = norm(_filterType);
+      const q = norm(_searchQuery);
+      let list = _allMerchants;
+      if (t) list = list.filter(m => norm(getTypeField(m)) === t);
+      if (q) list = list.filter(m => norm(m.name).includes(q));
+      return list;
+    }
+
+    function updateFilterOptions(list){
+      const select = $('filterType');
+      const types = Array.from(new Set(list.map(getTypeField).filter(Boolean)));
+      select.innerHTML = `<option value="">الكل</option>` + 
+        types.map(t=> `<option value="${t}">${t}</option>`).join('');
+    }
+
+    function renderNextPage(reset=false){
+      const wrap = $('merchants');
+      if (reset){ wrap.innerHTML=''; _cursor = 0; }
+      const filtered = getFilteredMerchants();
+      const slice = filtered.slice(_cursor, _cursor + PAGE_SIZE);
+      wrap.insertAdjacentHTML('beforeend', slice.map(merchantCard).join(''));
+      _cursor += slice.length;
+      $('empty').style.display = (filtered.length === 0) ? 'block' : 'none';
+    }
+
+    async function loadMerchants(reset=false){
+      if (!getSession()) { toast('سجّل دخول أولاً','err'); return refreshGate(); }
+      const { merchants:list } = await api('/api/merchants');
+
+      _allMerchants = [...list].sort((a,b)=>{
+        const ta = (a.discount_type||'').toLowerCase();
+        const tb = (b.discount_type||'').toLowerCase();
+        const va = Number(a.discount_value||0);
+        const vb = Number(b.discount_value||0);
+        if (ta!==tb) return ta==='fixed' ? -1 : 1;
+        return vb - va;
+      });
+
+      updateFilterOptions(_allMerchants);
+      renderNextPage(true);
+      connectObserver();
+    }
+
+    // ===== IntersectionObserver =====
+    let _observer = null, _loading = false;
+
+    function connectObserver(){
+      const sentinel = $('sentinel');
+      if (!sentinel) return;
+      disconnectObserver();
+      _observer = new IntersectionObserver(async (entries)=>{
+        const entry = entries[0];
+        if (!entry.isIntersecting) return;
+        if (_loading) return;
+
+        const filtered = getFilteredMerchants();
+        if (_cursor >= filtered.length) { disconnectObserver(); return; }
+
+        _loading = true;
+        await new Promise(r=> setTimeout(r, 120));
+        renderNextPage(false);
+        _loading = false;
+      }, { root: null, rootMargin: '0px 0px 200px 0px', threshold: 0 });
+      _observer.observe(sentinel);
+    }
+    function disconnectObserver(){
+      if (_observer){ _observer.disconnect(); _observer = null; }
+    }
+
+    // أحداث الفلاتر
+    $('filterType').onchange = ()=>{
+      _filterType = $('filterType').value;
+      renderNextPage(true);
+      connectObserver();
+    };
+    function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+    $('searchInput').addEventListener('input', debounce(()=>{
+      _searchQuery = $('searchInput').value;
+      renderNextPage(true);
+      connectObserver();
+    }, 250));
+    $('btnLoad').onclick = ()=> loadMerchants(true).catch(e=> toast(e.message,'err'));
+
+    // ===== خصم ونقاط (من دون عرض النص) =====
+    const DINAR_PER_POINT = 500; // لوجيك فقط (ما نعرضه)
+    let _redeemMerchant = null;
+
+    function openRedeem(merchant){
+      _redeemMerchant = merchant;
+      const pr = (String(merchant.discount_type||'').toLowerCase()==='percent')
+        ? `خصم نسبة ${merchant.discount_value}٪`
+        : `خصم ثابت ${fmt(merchant.discount_value||0)} د.ع`;
+      $('redeemMerchant').innerHTML = `التاجر: <b>${merchant.name}</b> — (${merchant.phone||'—'}) — <span class="muted">${pr}</span>`;
+      $('billInput').value = '';
+      $('pvLine').textContent = '';
+      $('pvPayable').textContent = '0';
+      $('redeemPreview').style.display = 'none';
+      $('confirmRedeem').disabled = true;
+      $('redeemModal').style.display = 'flex';
+    }
+    function closeRedeem(){ $('redeemModal').style.display = 'none'; }
+    $('closeRedeem').onclick = closeRedeem;
+
+    $('calcBtn').onclick = ()=>{
+      const bill = Number($('billInput').value || 0);
+      if (!bill || bill <= 0) return toast('اكتب مبلغ الفاتورة','err');
+      if (!_redeemMerchant) return;
+
+      const min = Number(_redeemMerchant.min_bill||0);
+      if (min && bill < min) return toast(`حد أدنى للفاتورة: ${fmt(min)} د.ع`,'err');
+
+      const t  = String(_redeemMerchant.discount_type||'').toLowerCase();
+      const v  = Number(_redeemMerchant.discount_value||0);
+      const discount = (t === 'percent') ? Math.floor(bill * (v/100)) : Math.min(v, bill);
+      const payable  = Math.max(0, bill - discount);
+
+      // فقط نعرض سطر الخصم بدون ذكر النقاط
+      const line = (t === 'percent')
+        ? `الخصم ${v}٪ = <b>${fmt(discount)}</b> د.ع`
+        : `الخصم = <b>${fmt(discount)}</b> د.ع`;
+
+      $('pvLine').innerHTML = line;
+      $('pvPayable').textContent  = fmt(payable);
+      $('redeemPreview').style.display = 'block';
+
+      // تحقق الرصيد بالنقاط (من غير عرض الرسالة التوضيحية)
+      const pointsRequired = Math.ceil(discount / DINAR_PER_POINT);
+      const available = Math.floor(Number(window.currentPoints||0));
+      $('confirmRedeem').disabled = (discount <= 0 || pointsRequired > available);
+      if (pointsRequired > available) {
+        toast('رصيد النقاط غير كافٍ لهذه العملية','err');
+      }
+
+      // خزّن القيم للاستعمال بالتأكيد
+      $('confirmRedeem')._calc = { bill, discount, payable, pointsRequired };
+    };
+
+    $('confirmRedeem').onclick = async ()=>{
+      const calc = $('confirmRedeem')._calc;
+      if (!calc) return;
+      if (!getSession()) return toast('سجّل دخول أولاً','err');
+      if (!_redeemMerchant) return;
+
+      try {
+        const res = await api('/api/redeem', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            client_code   : getSession(),
+            merchant_code : _redeemMerchant.merchant_code,
+            bill_total    : calc.bill,
+            discount_applied: calc.discount,
+            payable       : calc.payable
+          })
+        });
+        toast('تم تسجيل العملية ✔️');
+        closeRedeem();
+
+        if (res && res.client && typeof res.client.points_balance !== 'undefined') {
+          const newPts = Number(res.client.points_balance);
+          $('heroPoints').textContent = `نقاطك: ${newPts.toLocaleString('ar-IQ')}`;
+          window.currentPoints = Math.floor(newPts);
+        }
+      } catch(e){
+        toast(e.message || 'فشل العملية','err');
+      }
+    };
+
+    document.addEventListener('click', (ev)=>{
+      const btn = ev.target.closest('.btn-redeem');
+      if (!btn) return;
+      const code = btn.dataset.code;
+      const m = _allMerchants.find(x => x.merchant_code === code);
+      if (m) openRedeem(m);
+    });
+
+    // ====== QR Scanner ======
+    let _qr = null, _qrTorchOn = false;
+
+    function extractMerchantCode(text){
+      const m = text.match(/MRC-\d+/i);
+      return m ? m[0].toUpperCase() : (text.startsWith('MRC-') ? text.toUpperCase() : '');
+    }
+
+    async function startQR(){
+      if (!getSession()) return toast('سجّل دخول أولاً','err');
+      $('qrModal').style.display = 'flex';
+      const elId = "qrReader";
+      if (!_qr) _qr = new Html5Qrcode(elId);
+      const config = { fps: 12, qrbox: { width: 260, height: 260 }, rememberLastUsedCamera: true, aspectRatio: 1.0 };
+
+      try{
+        const cams = await Html5Qrcode.getCameras();
+        let cameraId = cams?.find(c=>/back|rear|environment/i.test(c.label))?.id || (cams[0]?.id);
+        if (!cameraId) throw new Error('لا توجد كاميرا متاحة');
+
+        await _qr.start(
+          { deviceId: { exact: cameraId } },
+          config,
+          (decodedText)=>{
+            const code = extractMerchantCode(decodedText || '');
+            if (!code) return;
+            const m = _allMerchants.find(x => (x.merchant_code||'').toUpperCase() === code);
+            if (m){
+              stopQR().then(()=>{ $('qrModal').style.display='none'; openRedeem(m); });
+            } else {
+              toast('كود تاجر غير معروف','err');
+            }
+          },
+          (err)=>{}
+        );
+
+        try{
+          const tracks = _qr._localMediaStream?.getVideoTracks?.();
+          const track = tracks && tracks[0];
+          const caps = track?.getCapabilities?.();
+          $('toggleTorch').style.display = caps && 'torch' in caps ? 'inline-block' : 'none';
+        }catch{ $('toggleTorch').style.display = 'none'; }
+
+      }catch(e){
+        $('qrModal').style.display = 'none';
+        toast(e.message || 'تعذّر فتح الكاميرا','err');
+      }
+    }
+
+    function stopQR(){
+      if (!_qr) return Promise.resolve();
+      return _qr.stop().catch(()=>{}).then(()=> _qr.clear());
+    }
+
+    $('openQR').onclick = startQR;
+    $('closeQR').onclick = ()=>{ stopQR().finally(()=> $('qrModal').style.display='none'); };
+    $('toggleTorch').onclick = ()=>{
+      try{
+        const tracks = _qr._localMediaStream?.getVideoTracks?.();
+        const track = tracks && tracks[0];
+        _qrTorchOn = !_qrTorchOn;
+        track?.applyConstraints?.({ advanced: [{ torch: _qrTorchOn }] }).catch(()=>{});
+      }catch{}
+    };
+
+    // عند فتح الصفحة
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      refreshGate();
+      if (getSession()) {
+        try {
+          const code = getSession();
+          const res = await fetch('/api/login', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ client_code: code })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            const c = data.client || {};
+            renderHero({
+              name: c.name || '—',
+              code: c.client_code || code,
+              phone: c.phone || '—',
+              points: Number(c.points_balance ?? 0)
+            });
+            await loadMerchants(true);
+          } else {
+            clearSession(); refreshGate();
+          }
+        } catch { /* ignore */ }
+      }
+    });
+  </script>
+</body>
+</html>

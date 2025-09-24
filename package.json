@@ -1,0 +1,16 @@
+{
+  "name": "discounts-platform",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node index.js",
+    "qr": "node scripts/make-qr.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "googleapis": "^131.0.0",
+    "qrcode": "^1.5.3"
+  }
+}
