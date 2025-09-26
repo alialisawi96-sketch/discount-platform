@@ -23,7 +23,7 @@
 
     .headerTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
     .brand{display:flex;align-items:center;gap:10px}
-    .brand img{height:36px; filter:grayscale(1) brightness(0) invert(1) contrast(2);}
+    .brand img{height:36px}
     .tagline{color:#cbd5e1; font-size:14px; margin-bottom:16px}
     .btn{ padding:10px 14px; border:none; border-radius:12px; cursor:pointer; font-weight:800; background:linear-gradient(135deg,var(--pri),var(--pri-700)); color:#fff; }
     .btn.secondary{ background:#334155; }
@@ -54,7 +54,7 @@
 
     .clientCard .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
     .clientCard .cname{font-weight:800; font-size:22px; letter-spacing:.3px}
-    .clientCard .logo{position:absolute; right:16px; bottom:14px; width:88px; opacity:.9; filter:grayscale(1) brightness(0) invert(1) contrast(2);}
+    .clientCard .logo{position:absolute; right:16px; bottom:14px; width:88px; opacity:.9}
     .clientCard .grid{display:grid; grid-template-columns: 1fr 1fr; gap:10px 18px; margin-top:14px}
     .k{opacity:.9;font-size:13px} .v{font-weight:800}
     .hint{position:absolute; left:12px; bottom:10px; font-size:12px; opacity:.8}
@@ -136,7 +136,7 @@
     textarea.rateComment{ width:100%; min-height:90px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:#0b122a; color:#e2e8f0; padding:10px 12px; outline:none }
 
     /* ===== Merchant detail modal (with slider) ===== */
-    .mBox{ background:#0f172a; color:#e2e8f0; width:min(375px,95vw); border-radius:18px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow) }
+    .mBox{ background:#0f172a; color:#e2e8f0; width:min(300px,95vw); border-radius:18px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow) }
     .mHead{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08) }
     .mRow{ display:flex; align-items:center; gap:12px }
     .mLogo{ width:64px; height:64px; border-radius:14px; overflow:hidden; background:#0b122a; border:1px solid rgba(255,255,255,.08); display:grid; place-items:center }
@@ -166,7 +166,7 @@
   <div class="container">
     <div class="headerTop">
       <div class="brand">
-        <img id="brandLogo" alt="Discount" />
+        <img src="/logo-discount.svg" alt="Discount" onerror="this.style.display='none'">
         <h2 style="margin:0">منصة دسكاونت الإلكترونية</h2>
       </div>
       <button id="logout" class="btn secondary">تسجيل خروج</button>
@@ -185,7 +185,7 @@
           <div class="k">الرصيد المتبقي</div><div class="v" id="cPoints">0</div>
           <div class="k">تاريخ النفاذ</div><div class="v" id="cExpiry">—</div>
         </div>
-        <img id="cardLogo" class="logo" alt="Discount">
+        <img class="logo" src="/logo-discount.svg" alt="Discount" onerror="this.style.display='none'">
         <div class="hint">اضغط لعرض كل العمليات</div>
       </div>
     </div>
@@ -297,27 +297,9 @@ let CLIENT=null, MERCHANTS=[];
 let RATE_CTX = { merchant_code:"", merchant_name:"", transaction_id:"", rating:0 };
 
 const $ = s => document.querySelector(s);
-const go = p => location.assign(p.startsWith('/')?p:'/'+p);
 function hClient(){ const c = localStorage.getItem('x-client-code'); return c? {'x-client-code':c} : {}; }
 
-$('#logout').onclick = () => { localStorage.removeItem('clientLogin'); localStorage.removeItem('x-client-code'); go('login'); };
-
-// ====== شعارات مع fallback (PNG/SVG/Drive) ======
-(function setupBrandLogos(){
-  const driveId = '1SIL4hnVs972b-wyTLN0PEy0buKsuBsft';
-  function applyFallback(img, tries){
-    let i=0; img.onerror = ()=>{ if(i<tries.length){ img.src = tries[i++]; } else { img.style.display='none'; } };
-    img.src = tries[i++]; // kick-off
-  }
-  const tries = [
-    'logo-discount.svg','logo-discount.PNG','logo-discount.png',
-    '/logo-discount.svg','/logo-discount.PNG','/logo-discount.png',
-    `https://drive.google.com/uc?export=view&id=${driveId}`
-  ];
-  const b = $('#brandLogo'), c = $('#cardLogo');
-  applyFallback(b, tries.slice());
-  applyFallback(c, tries.slice());
-})();
+$('#logout').onclick = () => { localStorage.removeItem('clientLogin'); localStorage.removeItem('x-client-code'); location.href = '/login.html'; };
 
 // إغلاق المودالات على الخلفية + إيقاف السلايدر عند غلق تفاصيل التاجر
 document.addEventListener('click', (e)=>{
@@ -338,40 +320,22 @@ function setTierTheme(categoryText){
   else                                      card.classList.add('tier-basic');
 }
 
-function hydrateFromObject(obj){
-  CLIENT = obj||{};
-  if (CLIENT?.code) {
-    const cur = localStorage.getItem('x-client-code');
-    if (cur !== String(CLIENT.code)) localStorage.setItem('x-client-code', String(CLIENT.code));
-  }
-  $('#cName').textContent    = CLIENT.name   || '—';
-  $('#cCode').textContent    = CLIENT.code   || '—';
-  $('#cPoints').textContent  = (CLIENT.points||0).toLocaleString('ar-IQ');
-  $('#cExpiry').textContent  = CLIENT.expiry || '—';
-  $('#cCategory').textContent= 'فئة: ' + (CLIENT.category || '—');
-  setTierTheme(CLIENT.category);
-}
-
-// نحاول أولاً من localStorage، وإن ماكو نجيب البروفايل من API باستعمال x-client-code
-async function ensureClient(){
+function hydrate(){
   try{
-    const s = localStorage.getItem('clientLogin');
-    if (s) {
-      try { hydrateFromObject(JSON.parse(s)); return true; } catch {}
+    const s = localStorage.getItem('clientLogin'); if(!s) return false;
+    CLIENT = JSON.parse(s);
+    if (CLIENT?.code) {
+      const cur = localStorage.getItem('x-client-code');
+      if (cur !== String(CLIENT.code)) localStorage.setItem('x-client-code', String(CLIENT.code));
     }
-    const code = localStorage.getItem('x-client-code');
-    if(!code){ go('login'); return false; }
-    const r = await fetch('/api/client/me', { headers: { 'x-client-code': code }});
-    const t = await r.text(); let data;
-    try{ data = JSON.parse(t); } catch { throw new Error(t); }
-    if(!r.ok) throw new Error(data.error||r.status);
-    localStorage.setItem('clientLogin', JSON.stringify(data));
-    hydrateFromObject(data);
+    $('#cName').textContent = CLIENT.name || '—';
+    $('#cCode').textContent = CLIENT.code || '—';
+    $('#cPoints').textContent = (CLIENT.points||0).toLocaleString('ar-IQ');
+    $('#cExpiry').textContent = CLIENT.expiry || '—';
+    $('#cCategory').textContent = 'فئة: ' + (CLIENT.category || '—');
+    setTierTheme(CLIENT.category);
     return true;
-  }catch(e){
-    go('login');
-    return false;
-  }
+  }catch{ return false; }
 }
 
 function buildMapsUrl(m){
@@ -453,17 +417,27 @@ function showSlide(i, manual=false){
   showEl.classList.add('show');
   hideEl.classList.remove('show');
   SLIDER.showingA = !SLIDER.showingA;
+  // تحديث النقاط
   [...$('#mmDots').children].forEach((d,ix)=> d.classList.toggle('on', ix===SLIDER.idx));
+  // إعادة تشغيل المؤقت لو نقرت يدويًا
   if(manual) restartTimer();
 }
 function nextSlide(){ showSlide(SLIDER.idx+1); }
 function prevSlide(){ showSlide(SLIDER.idx-1,true); }
-function restartTimer(){ stopSlider(); if(SLIDER.pics.length>1){ SLIDER.timer = setInterval(nextSlide, 2000); } }
-function stopSlider(){ if(SLIDER.timer){ clearInterval(SLIDER.timer); SLIDER.timer=null; } }
+function restartTimer(){
+  stopSlider();
+  if(SLIDER.pics.length>1){
+    SLIDER.timer = setInterval(nextSlide, 2000);
+  }
+}
+function stopSlider(){
+  if(SLIDER.timer){ clearInterval(SLIDER.timer); SLIDER.timer=null; }
+}
 function startSlider(pics){
   SLIDER.pics = Array.isArray(pics)? pics.filter(Boolean): [];
   SLIDER.idx = 0; SLIDER.showingA = true;
   renderDots();
+  // تهيئة الشريحتين
   $('#mmSlideA').src = SLIDER.pics[0] || '';
   $('#mmSlideA').classList.add('show');
   $('#mmSlideB').classList.remove('show');
@@ -534,6 +508,7 @@ function renderMerchants(list){
           <div class="k2">الحد الأدنى</div><div>${minBill ? minBill.toLocaleString('ar-IQ')+' د.ع' : '—'}</div><div></div>
         </div>
       </div>`;
+    // افتح نافذة تفاصيل التاجر عند الضغط (مع تجاهل الروابط)
     el.addEventListener('click', (ev)=>{ if(!ev.target.closest('a')) openMerchantModal(m); });
     grid.appendChild(el);
   });
@@ -654,9 +629,7 @@ document.getElementById('clientCard').addEventListener('click', loadTransactions
 document.getElementById('clientCard').addEventListener('keypress', (e)=>{ if(e.key==='Enter') loadTransactions(); });
 document.getElementById('closeModal').onclick = ()=> document.getElementById('txModal').style.display='none';
 
-// ====== البداية: نحضّر العميل ثم نحمّل المتاجر
-ensureClient().then(ok => { if(ok) loadMerchants(); });
+if(!hydrate()){ location.href='/login.html'; } else { loadMerchants(); }
 </script>
-
 </body>
 </html>
