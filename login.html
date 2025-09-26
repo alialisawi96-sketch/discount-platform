@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>تسجيل الدخول</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b1020; --bg2:#0e1530;
+      --card:rgba(16,25,54,.7); --bd:rgba(255,255,255,.06);
+      --ink:#e2e8f0; --muted:#94a3b8; --pri:#6366f1; --pri-700:#494ce0;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--ink);font-family:"Cairo",system-ui}
+
+    .wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
+    .stack{display:flex;flex-direction:column;align-items:center;gap:18px}
+
+    /* ===== الشعار في المنتصف ===== */
+    .hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
+    .hero img.logo{
+      width:min(360px,70vw);
+      height:auto; object-fit:contain;
+      /* تحويل أي لون إلى أبيض */
+      filter: grayscale(1) brightness(0) invert(1) contrast(2);
+      opacity:.98; user-select:none; -webkit-user-drag:none; display:block;
+    }
+    .brandWordmark{display:none;font-weight:900;font-size:42px;letter-spacing:.18em;text-transform:uppercase;color:#fff;opacity:.95}
+    .brandLine{font-weight:800;font-size:28px;letter-spacing:.3px}
+
+    /* GIF المتحرك تحت الشعار */
+    .heroGif{
+      width:min(260px,58vw);
+      height:auto;
+      display:none; /* نظهرها بعد نجاح التحميل */
+      border-radius:14px;
+      border:1px solid var(--bd);
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    @media (max-width:520px){
+      .brandLine{font-size:22px}
+      .brandWordmark{font-size:34px}
+    }
+
+    .card{width:min(520px,95vw);background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;box-shadow:0 12px 30px rgba(0,0,0,.35)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    input,select,button{
+      padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.05);color:var(--ink);outline:none
+    }
+    input,select{flex:1 1 160px}
+    button{background:linear-gradient(135deg,var(--pri),var(--pri-700));border:none;font-weight:800;cursor:pointer}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stack">
+      <!-- ===== الشعار + السطر التعريفي ===== -->
+      <div class="hero">
+        <!-- لا نضع src هنا؛ السكربت يضبطه مع فfallback -->
+        <img id="logoImg" class="logo" alt="Discount logo" referrerpolicy="no-referrer">
+        <div id="brandWordmark" class="brandWordmark">DISCOUNT</div>
+        <div class="brandLine">منصة دسكاونت الإلكترونية</div>
+
+        <!-- GIF المتحرك من Google Drive -->
+        <img id="heroGif" class="heroGif" alt="Animated banner" loading="lazy" referrerpolicy="no-referrer">
+      </div>
+
+      <!-- ===== بطاقة تسجيل الدخول ===== -->
+      <div class="card">
+        <h2 style="margin:0 0 10px">تسجيل الدخول</h2>
+        <div class="row">
+          <select id="role" aria-label="اختيار الدور">
+            <option value="client">عميل</option>
+            <option value="merchant">تاجر</option>
+          </select>
+          <input id="code" placeholder="أدخل الكود" autocomplete="one-time-code" />
+          <button id="loginBtn">دخول</button>
+        </div>
+        <div class="muted" style="margin-top:8px">اختر الدور وأدخل الكود المخصص إلك.</div>
+        <div id="msg" class="muted" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = id => document.getElementById(id);
+function say(t,err=false){ const m=$('msg'); m.style.color=err?'#fecaca':'#94a3b8'; m.textContent=t; }
+
+/* ====== تحميل شعار Google Drive مع فfallback ====== */
+(function mountLogo(){
+  const driveId = '1SIL4hnVs972b-wyTLN0PEy0buKsuBsft'; // شعارك على درايف
+  const img = $('logoImg');
+  const text = $('brandWordmark');
+
+  const tries = [
+    `https://drive.google.com/uc?export=view&id=${driveId}`,
+    `https://drive.google.com/uc?id=${driveId}`,
+    'logo-discount.PNG',
+    'logo-discount.png',
+    '/logo-discount.PNG',
+    '/logo-discount.png'
+  ];
+  let i = 0;
+
+  function next() {
+    if (i >= tries.length) { img.style.display='none'; text.style.display='block'; return; }
+    img.src = tries[i++];
+  }
+  img.onload  = () => { img.style.display='block'; text.style.display='none'; };
+  img.onerror = next;
+  next();
+})();
+
+/* ====== تحميل GIF من Google Drive مع فfallback بسيط ====== */
+(function mountDriveGif(){
+  const id = '15NmI9__IIDtEGUrJG8O8grAU2feajcz6'; // GIF من رابطك
+  const gif = $('heroGif');
+  const tries = [
+    `https://drive.google.com/uc?export=view&id=${id}`,
+    `https://drive.google.com/uc?id=${id}`
+  ];
+  let i = 0;
+  function tryLoad() {
+    if (i >= tries.length) return; // إذا فشلت كلها، نتركها مخفية
+    gif.src = tries[i++];
+  }
+  gif.onload  = ()=>{ gif.style.display='block'; };
+  gif.onerror = tryLoad;
+  tryLoad();
+})();
+
+/* ====== تسجيل الدخول ====== */
+$('loginBtn').onclick = async () => {
+  try{
+    const role = $('role').value;
+    const code = $('code').value.trim();
+    if(!code) return say('أدخل الكود', true);
+
+    if(role === 'client'){
+      const r = await fetch('/api/login',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({client_code:code})
+      });
+      const j = await r.json(); if(!r.ok) throw new Error(j.error||r.status);
+      localStorage.setItem('clientLogin', JSON.stringify(j));
+      localStorage.setItem('x-client-code', j.code || code);
+      location.href = '/index.html';
+    }else{
+      const r = await fetch('/api/merchant/login',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({merchant_code:code})
+      });
+      const j = await r.json(); if(!r.ok) throw new Error(j.error||r.status);
+      localStorage.setItem('merchantLogin', JSON.stringify(j));
+      localStorage.setItem('x-merchant-code', j.code || code);
+      location.href = '/merchant.html';
+    }
+  }catch(e){ say(e.message,true); }
+};
+</script>
+</body>
+</html>

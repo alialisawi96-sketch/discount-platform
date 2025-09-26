@@ -28,3 +28,20 @@ async function showMerchants() {
   document.getElementById("merchantsList").innerText = list || "لا توجد متاجر";
 }
 
+// مسارات العميل (موجودة عندك): /api/login, /api/merchants, /api/qr, /api/redeem
+// ... موجودة أساساً عندك. :contentReference[oaicite:0]{index=0}
+
+/* ========== مسارات التاجر ========== */
+app.use('/api/merchant', requireMerchant);
+
+app.post("/api/merchant/login", async (req, res) => {
+  const mod = await import("./api/merchant-login.js"); return mod.default(req, res);
+});
+
+app.post("/api/merchant/redeem", async (req, res) => {
+  const mod = await import("./api/merchant-redeem.js"); return mod.default(req, res);
+});
+
+app.get("/api/merchant/customers", async (req, res) => {
+  const mod = await import("./api/merchant-customers.js"); return mod.default(req, res);
+});

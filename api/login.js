@@ -1,42 +1,31 @@
-import { read, findBy, toObj, RANGES, sumBy } from '../lib/sheets.js';
+// api/login.js
+import { read, toObj, findBy, RANGES } from "../lib/sheets.js";
 
-function send(res, status, body) {
-  if (typeof res.status === 'function' && typeof res.json === 'function') {
-    return res.status(status).json(body);
-  }
-  res.statusCode = status; res.setHeader('Content-Type','application/json');
-  res.end(JSON.stringify(body));
-}
-
-async function readJson(req) {
-  if (req.body && Object.keys(req.body).length) return req.body;
-  return await new Promise((resolve) => {
-    let raw = ''; req.on('data', c => raw += c);
-    req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { resolve({}); }});
-  });
-}
-
-export default async function handler(req, res) {
-  if ((req.method || 'GET').toUpperCase() !== 'POST') {
-    return send(res, 405, { error: 'Method Not Allowed' });
-  }
+export default async function clientLogin(req, res) {
   try {
-    const { client_code } = await readJson(req);
-    if (!client_code) return send(res, 400, { error: 'client_code required' });
+    const { client_code } = req.body || {};
+    if (!client_code) return res.status(400).json({ error: "client_code is required" });
 
-    const { header: ch, rows: cr } = await read(RANGES.CLIENTS);
-    const crow = findBy(ch, cr, 'client_code', client_code);
-    if (!crow) return send(res, 404, { error: 'Client not found' });
-    const client = toObj(ch, crow);
+    const data = await read(RANGES.CLIENTS);
+    const h = data.header;
 
-    const { header: th, rows: tr } = await read(RANGES.TRANSACTIONS);
-    const spent = sumBy(th, tr, 'client_code', client_code, 'savings');
-    const starting = Number(client.starting_points || 0);
-    const balance = starting - spent;
+    const row =
+      findBy(h, data.rows, "client_code", client_code) ||
+      findBy(h, data.rows, "code", client_code);
+    if (!row) return res.status(401).json({ error: "Invalid client code" });
 
-    return send(res, 200, { client: { ...client, points_balance: balance } });
+    const c = toObj(h, row);
+
+    return res.json({
+      code: c.client_code || c.code || "",
+      name: c.name || "",
+      phone: c.phone || "",
+      points: Number(c.points_balance || c.starting_points || 0),
+      // حسب سكيمة الجدول:
+      expiry: c["client.expiry"] || "",
+      category: c.category || "",
+    });
   } catch (e) {
-    console.error('LOGIN_ERROR', e?.response?.data || e?.message || e);
-    return send(res, 500, { error: 'Server error' });
+    return res.status(500).json({ error: e.message });
   }
 }
