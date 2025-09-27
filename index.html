@@ -513,26 +513,46 @@ function renderMerchants(list){
     grid.appendChild(el);
   });
 }
+// ✅ helper: يرجّع الفئة من أي حقل ويطبعها بشكل موحّد
+function getCat(m){
+  const raw = m?.category ?? m?.Category ?? m?.cat ?? m?.type ?? m?.group
+            ?? m?.category_name ?? m?.category_ar ?? '';
+  return String(raw || '')
+    .trim()
+    .replace(/[أإآ]/g,'ا')      // توحيد الألف
+    .replace(/\s+/g,' ');       // تقليل المسافات
+}
 
+/* ===== ملء قائمة الفئات ===== */
 function fillCategories(){
   const sel = $('#catFilter');
-  const cats = [...new Set(MERCHANTS.map(m => (m.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
-  sel.innerHTML = `<option value="">كل الفئات</option>` + cats.map(c=>`<option value="${c.toLowerCase()}">${c}</option>`).join('');
+  const cats = [...new Set(MERCHANTS.map(getCat).filter(Boolean))]
+                .sort((a,b)=>a.localeCompare(b,'ar'));
+  sel.innerHTML = `<option value="">كل الفئات</option>` +
+    cats.map(c=>`<option value="${c.toLowerCase()}">${c}</option>`).join('');
 }
+
+/* ===== تطبيق الفلاتر ===== */
 function applyFilters(){
   const q = $('#search').value.trim().toLowerCase();
-  const cat = $('#catFilter').value;
+  const catVal = $('#catFilter').value; // lowercase بعد التنميط
   let list = MERCHANTS.slice();
-  if(cat) list = list.filter(m => String(m.category||'').trim().toLowerCase() === cat);
-  if(q){
+
+  if (catVal){
+    list = list.filter(m => getCat(m).toLowerCase() === catVal);
+  }
+  if (q){
     list = list.filter(m => {
       const hay = `${m.name||''} ${m.phone||''} ${m.merchant_code||m.code||''}`.toLowerCase();
       return hay.includes(q);
     });
   }
-  list.sort((a,b)=> (Number(b.stars||0) - Number(a.stars||0)) || String(a.name||'').localeCompare(String(b.name||''),'ar'));
+
+  list.sort((a,b)=> (Number(b.stars||0) - Number(a.stars||0)) ||
+                    String(a.name||'').localeCompare(String(b.name||''),'ar'));
   renderMerchants(list);
 }
+
 document.getElementById('search').addEventListener('input', applyFilters);
 document.getElementById('catFilter').addEventListener('change', applyFilters);
 document.getElementById('clear').addEventListener('click', ()=>{ document.getElementById('search').value=''; document.getElementById('catFilter').value=''; applyFilters(); });
@@ -599,32 +619,55 @@ async function submitRating(){
 document.getElementById('submitRate').addEventListener('click', submitRating);
 
 /* ==== سجل العمليات ==== */
+
 async function loadTransactions(){
-  const modal = document.getElementById('txModal'); const body = document.getElementById('txBody'); body.innerHTML=''; modal.style.display='grid';
+  const modal = document.getElementById('txModal');
+  const body  = document.getElementById('txBody');
+  body.innerHTML='';
+  modal.style.display='grid';
+
   const r = await fetch('/api/client/transactions', { headers: hClient() });
   const text = await r.text(); let data;
   try { data = JSON.parse(text); } catch { data = { error: text }; }
+
   if(!r.ok){ body.innerHTML = `<tr><td colspan="5">${data.error||r.status}</td></tr>`; return; }
   const tx = data.transactions || [];
   if(!tx.length){ body.innerHTML = `<tr><td colspan="5">لا توجد عمليات.</td></tr>`; return; }
 
   tx.forEach(t=>{
+    // التاريخ
+    const ts = t.ts || t.created_at || t.createdAt;
+    const when = ts ? new Date(ts).toLocaleString('ar-IQ') : '—';
+    // التاجر
+    const merchant = t.merchant_name || t.merchant || t.merchant_code || t.code || '—';
+    // إجمالي الفاتورة
+    const total = Number(t.bill_total ?? t.total ?? t.bill ?? 0);
+    // الخصم = عمود savings من الشيت
+    const savings = Number(t.savings ?? 0);
+    // المستحق = عمود "The due" من الشيت
+    const due = Number(t['The due'] ?? t.the_due ?? 0);
+
     const tr = document.createElement('tr');
     tr.className = 'txRow';
-    tr.innerHTML = `<td>${t.ts ? new Date(t.ts).toLocaleString('ar-IQ') : '—'}</td>
-                    <td>${t.merchant_name || t.merchant_code || '—'}</td>
-                    <td>${Number(t.bill_total||0).toLocaleString('ar-IQ')}</td>
-                    <td>${Number(t.discount||0).toLocaleString('ar-IQ')}</td>
-                    <td>${Number(t.payable||0).toLocaleString('ar-IQ')}</td>`;
+    tr.innerHTML = `
+      <td>${when}</td>
+      <td>${merchant}</td>
+      <td>${total ? total.toLocaleString('ar-IQ') : '—'}</td>
+      <td>${savings ? savings.toLocaleString('ar-IQ') : '—'}</td>
+      <td>${due ? due.toLocaleString('ar-IQ') : '—'}</td>
+    `;
+
     const ctx = {
       merchant_code: t.merchant_code || '',
       merchant_name: t.merchant_name || t.merchant_code || '',
-      transaction_id: t.transaction_id || t.id || t.ts || ''
+      transaction_id: t.transaction_id || t.id || ts || ''
     };
     tr.addEventListener('click', ()=> openRateModal(ctx));
     body.appendChild(tr);
   });
 }
+
+
 document.getElementById('clientCard').addEventListener('click', loadTransactions);
 document.getElementById('clientCard').addEventListener('keypress', (e)=>{ if(e.key==='Enter') loadTransactions(); });
 document.getElementById('closeModal').onclick = ()=> document.getElementById('txModal').style.display='none';

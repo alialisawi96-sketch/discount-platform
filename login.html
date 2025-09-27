@@ -22,7 +22,6 @@
     .hero img.logo{
       width:min(360px,70vw);
       height:auto; object-fit:contain;
-      /* تحويل أي لون إلى أبيض */
       filter: grayscale(1) brightness(0) invert(1) contrast(2);
       opacity:.98; user-select:none; -webkit-user-drag:none; display:block;
     }
@@ -33,7 +32,7 @@
     .heroGif{
       width:min(260px,58vw);
       height:auto;
-      display:none; /* نظهرها بعد نجاح التحميل */
+      display:none;
       border-radius:14px;
       border:1px solid var(--bd);
       box-shadow:0 12px 30px rgba(0,0,0,.35);
@@ -52,6 +51,7 @@
     }
     input,select{flex:1 1 160px}
     button{background:linear-gradient(135deg,var(--pri),var(--pri-700));border:none;font-weight:800;cursor:pointer}
+    button[disabled]{opacity:.6;cursor:not-allowed}
     .muted{color:var(--muted)}
   </style>
 </head>
@@ -60,7 +60,6 @@
     <div class="stack">
       <!-- ===== الشعار + السطر التعريفي ===== -->
       <div class="hero">
-        <!-- لا نضع src هنا؛ السكربت يضبطه مع فfallback -->
         <img id="logoImg" class="logo" alt="Discount logo" referrerpolicy="no-referrer">
         <div id="brandWordmark" class="brandWordmark">DISCOUNT</div>
         <div class="brandLine">منصة دسكاونت الإلكترونية</div>
@@ -77,7 +76,7 @@
             <option value="client">عميل</option>
             <option value="merchant">تاجر</option>
           </select>
-          <input id="code" placeholder="أدخل الكود" autocomplete="one-time-code" />
+          <input id="code" placeholder="أدخل كود العميل" autocomplete="one-time-code" inputmode="numeric" />
           <button id="loginBtn">دخول</button>
         </div>
         <div class="muted" style="margin-top:8px">اختر الدور وأدخل الكود المخصص إلك.</div>
@@ -87,79 +86,124 @@
   </div>
 
 <script>
+/* ===== Helpers ===== */
 const $ = id => document.getElementById(id);
-function say(t,err=false){ const m=$('msg'); m.style.color=err?'#fecaca':'#94a3b8'; m.textContent=t; }
+function say(t,err=false){ const m=$('msg'); m.style.color=err?'#fecaca':'#94a3b8'; m.textContent=t||''; }
+function parseJSON(text){ try{return JSON.parse(text)}catch{ return { error:text } } }
+
+// تحويل الأرقام العربية/الفارسية إلى إنكليزية
+const mapAR = '٠١٢٣٤٥٦٧٨٩', mapFA = '۰۱۲۳۴۵۶۷۸۹';
+function normalizeDigits(s=''){
+  return String(s)
+    .replace(/[٠-٩]/g, d => mapAR.indexOf(d))
+    .replace(/[۰-۹]/g, d => mapFA.indexOf(d))
+    .trim();
+}
 
 /* ====== تحميل شعار Google Drive مع فfallback ====== */
 (function mountLogo(){
-  const driveId = '1SIL4hnVs972b-wyTLN0PEy0buKsuBsft'; // شعارك على درايف
+  const driveId = '1SIL4hnVs972b-wyTLN0PEy0buKsuBsft';
   const img = $('logoImg');
   const text = $('brandWordmark');
-
   const tries = [
     `https://drive.google.com/uc?export=view&id=${driveId}`,
     `https://drive.google.com/uc?id=${driveId}`,
-    'logo-discount.PNG',
+    'logo-discount.svg',
     'logo-discount.png',
-    '/logo-discount.PNG',
-    '/logo-discount.png'
+    'logo-discount.PNG',
+    '/logo-discount.svg',
+    '/logo-discount.png',
+    '/logo-discount.PNG'
   ];
   let i = 0;
-
-  function next() {
-    if (i >= tries.length) { img.style.display='none'; text.style.display='block'; return; }
-    img.src = tries[i++];
-  }
+  function next(){ if(i>=tries.length){ img.style.display='none'; text.style.display='block'; return; } img.src = tries[i++]; }
   img.onload  = () => { img.style.display='block'; text.style.display='none'; };
-  img.onerror = next;
-  next();
+  img.onerror = next; next();
 })();
 
-/* ====== تحميل GIF من Google Drive مع فfallback بسيط ====== */
+/* ====== تحميل GIF من Google Drive (اختياري) ====== */
 (function mountDriveGif(){
-  const id = '15NmI9__IIDtEGUrJG8O8grAU2feajcz6'; // GIF من رابطك
+  const id = '15NmI9__IIDtEGUrJG8O8grAU2feajcz6';
   const gif = $('heroGif');
   const tries = [
     `https://drive.google.com/uc?export=view&id=${id}`,
     `https://drive.google.com/uc?id=${id}`
   ];
   let i = 0;
-  function tryLoad() {
-    if (i >= tries.length) return; // إذا فشلت كلها، نتركها مخفية
-    gif.src = tries[i++];
-  }
+  function tryLoad(){ if(i>=tries.length) return; gif.src = tries[i++]; }
   gif.onload  = ()=>{ gif.style.display='block'; };
-  gif.onerror = tryLoad;
-  tryLoad();
+  gif.onerror = tryLoad; tryLoad();
+})();
+
+/* ====== تهيئة الحقول ====== */
+(function initUI(){
+  // استرجاع آخر دور/كود
+  const lastRole = localStorage.getItem('lastRole') || 'client';
+  $('role').value = lastRole;
+  $('code').placeholder = lastRole==='client' ? 'أدخل كود العميل' : 'أدخل كود التاجر';
+  const lastCode = localStorage.getItem('lastCode') || '';
+  if(lastCode) $('code').value = lastCode;
+
+  $('role').addEventListener('change', () => {
+    $('code').placeholder = ($('role').value==='client') ? 'أدخل كود العميل' : 'أدخل كود التاجر';
+    localStorage.setItem('lastRole', $('role').value);
+  });
+
+  // Enter = دخول
+  $('code').addEventListener('keypress', e => { if(e.key==='Enter'){ $('loginBtn').click(); } });
+  $('code').focus();
 })();
 
 /* ====== تسجيل الدخول ====== */
 $('loginBtn').onclick = async () => {
-  try{
-    const role = $('role').value;
-    const code = $('code').value.trim();
-    if(!code) return say('أدخل الكود', true);
+  const btn = $('loginBtn');
+  if(btn.disabled) return;
 
-    if(role === 'client'){
-      const r = await fetch('/api/login',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({client_code:code})
-      });
-      const j = await r.json(); if(!r.ok) throw new Error(j.error||r.status);
+  try{
+    say('');
+    const role = $('role').value;
+    let code = normalizeDigits($('code').value);
+    if(!code){ say('أدخل الكود', true); $('code').focus(); return; }
+
+    // حفظ آخر إدخال لراحة المستخدم
+    localStorage.setItem('lastRole', role);
+    localStorage.setItem('lastCode', code);
+
+    btn.disabled = true; const oldLabel = btn.textContent; btn.textContent = 'جاري التحقق...';
+
+    const endpoint = (role==='client') ? '/api/login' : '/api/merchant/login';
+    const payload  = (role==='client') ? { client_code: code } : { merchant_code: code };
+
+    const r = await fetch(endpoint, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const txt = await r.text();
+    const j = parseJSON(txt);
+
+    if(!r.ok){ throw new Error(j.error || ('HTTP '+r.status)); }
+
+    // خزن الرد كما هو + مفاتيح مفيدة ثابتة
+    if(role==='client'){
       localStorage.setItem('clientLogin', JSON.stringify(j));
-      localStorage.setItem('x-client-code', j.code || code);
-      location.href = '/index.html';
+      localStorage.setItem('x-client-code', String(j.code || j.client_code || code));
+      // إعادة توجيه (مع دعم ?r=/path)
+      const params = new URLSearchParams(location.search);
+      location.href = params.get('r') || '/index.html';
     }else{
-      const r = await fetch('/api/merchant/login',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({merchant_code:code})
-      });
-      const j = await r.json(); if(!r.ok) throw new Error(j.error||r.status);
       localStorage.setItem('merchantLogin', JSON.stringify(j));
-      localStorage.setItem('x-merchant-code', j.code || code);
-      location.href = '/merchant.html';
+      localStorage.setItem('x-merchant-code', String(j.code || j.merchant_code || code));
+      const params = new URLSearchParams(location.search);
+      location.href = params.get('r') || '/merchant.html';
     }
-  }catch(e){ say(e.message,true); }
+  }catch(e){
+    say(e.message || 'تعذر تسجيل الدخول', true);
+  }finally{
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = 'دخول';
+  }
 };
 </script>
 </body>
