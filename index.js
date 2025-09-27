@@ -1,678 +1,96 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>منصة الخصومات — عميل</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --bg:#0b1020; --bg2:#0e1530; --muted:#94a3b8; --text:#e2e8f0;
-      --pri:#6366f1; --pri-700:#494ce0; --ok:#16a34a; --card:rgba(16,25,54,.78);
-      --bd:rgba(255,255,255,.06); --white:#fff; --shadow:0 12px 30px rgba(0,0,0,.35);
-      --radius:18px;
-      --ink:#0f172a; --ink2:#334155; --line:#e5e7eb;
-      --page:#0e142d;
-      --gold1:#f59e0b; --gold2:#fbbf24; --gold3:#fde68a;
-      --sil1:#f4f4f5; --sil2:#d1d5db; --sil3:#9ca3af;
-      --pla1:#b8c6db; --pla2:#f5f7fa; --pla3:#cbd5e1;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));font-family:"Cairo",system-ui;color:var(--text)}
-    .container{ max-width:1100px; margin:0 auto; padding:24px; }
+// index.js
 
-    .headerTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-    .brand{display:flex;align-items:center;gap:10px}
-    .brand img{height:36px}
-    .tagline{color:#cbd5e1; font-size:14px; margin-bottom:16px}
-    .btn{ padding:10px 14px; border:none; border-radius:12px; cursor:pointer; font-weight:800; background:linear-gradient(135deg,var(--pri),var(--pri-700)); color:#fff; }
-    .btn.secondary{ background:#334155; }
+// ===== Imports =====
+import express from "express";
+import cors from "cors";
+import path, { join } from "path";
+import { fileURLToPath } from "url";
 
-    /* ===== Fixed credit card with tiers ===== */
-    .clientWrap{ display:flex; justify-content:center; margin:10px 0 16px; }
-    .clientCard{
-      position:relative; overflow:hidden;
-      width:min(520px, 100%);
-      aspect-ratio: 1.586;
-      border-radius:20px;
-      padding:20px 22px;
-      background:radial-gradient(120% 130% at 0% 0%, #3b82f6 0%, #4f46e5 60%, #1e1b4b 100%);
-      border:1px solid rgba(255,255,255,.12); color:#ecf2ff;
-      box-shadow: var(--shadow);
-      cursor:pointer;
-    }
-    .clientCard.tier-basic{ background:radial-gradient(120% 130% at 0% 0%, #3b82f6 0%, #4f46e5 60%, #1e1b4b 100%); }
-    .clientCard.tier-silver{ background:linear-gradient(135deg, var(--sil1), var(--sil2), var(--sil3)); }
-    .clientCard.tier-gold{   background:linear-gradient(135deg, var(--gold1), var(--gold2), var(--gold3)); }
-    .clientCard.tier-platinum{ background:linear-gradient(135deg, var(--pla1), var(--pla2), var(--pla3)); }
+// ===== Setup =====
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-    .clientCard:not(.tier-basic){ color:var(--ink)!important; }
-    .clientCard:not(.tier-basic) .cname,
-    .clientCard:not(.tier-basic) .v,
-    .clientCard:not(.tier-basic) .hint{ color:var(--ink)!important; }
-    .clientCard:not(.tier-basic) .k{ color:var(--ink2)!important; opacity:1!important; }
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-    .clientCard .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
-    .clientCard .cname{font-weight:800; font-size:22px; letter-spacing:.3px}
-    .clientCard .logo{position:absolute; right:16px; bottom:14px; width:88px; opacity:.9}
-    .clientCard .grid{display:grid; grid-template-columns: 1fr 1fr; gap:10px 18px; margin-top:14px}
-    .k{opacity:.9;font-size:13px} .v{font-weight:800}
-    .hint{position:absolute; left:12px; bottom:10px; font-size:12px; opacity:.8}
+// Middlewares
+app.use(cors());
+app.use(express.json());
 
-    /* ===== Merchants list ===== */
-    .card{ background:var(--card); border:1px solid var(--bd); border-radius:var(--radius); box-shadow:var(--shadow); }
-    .list{ padding:18px }
-    .controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 4px 14px }
-    .select, .search{
-      background:#0b122a; border:1px solid rgba(255,255,255,.12); color:#e2e8f0;
-      padding:10px 12px; border-radius:12px; outline:none; min-width:220px;
-    }
-    .search{ min-width:280px }
+// Serve static files (UI)
+app.use(express.static(__dirname));
 
-    .grid{ display:grid; gap:16px; }
-    .coupon{
-      position:relative;
-      background:#fff; color:var(--ink);
-      border:1px solid var(--line);
-      border-radius:18px;
-      display:grid; grid-template-columns: 94px 1fr;
-      overflow:hidden;
-      box-shadow: 0 10px 24px rgba(0,0,0,.18);
-      cursor:pointer;
-    }
+// ===== Auth Middlewares =====
+// Client auth: allow POST /api/login without header
+function requireClient(req, res, next) {
+  const open = [/^\/api\/login$/];
+  if (open.some(rx => rx.test(req.path))) return next();
+  const client = req.headers["x-client-code"];
+  if (!client) return res.status(401).json({ error: "Unauthorized (client)" });
+  req.clientCode = String(client);
+  next();
+}
 
-    /* === Rating stars === */
-    .stars{
-      display:inline-flex !important;
-      align-items:center;
-      gap:6px !important;
-      white-space:nowrap;
-      letter-spacing:0 !important;
-    }
-    .stars .star{
-      display:inline-block;
-      width:1.1em; text-align:center;
-      font-size:16px; line-height:1;
-    }
-    .stars .star.full{ color:#fbbf24; }
-    .stars .star.empty{ color:#cbd5e1; }
-    .stars .star.half{ color:#cbd5e1; position:relative; overflow:hidden; }
-    .stars .star.half::before{ content:"★"; position:absolute; left:0; top:0; width:50%; color:#fbbf24; }
-    .stars .rateNum{ color:#64748b; font-size:12px; margin-inline-start:8px; font-weight:700; font-variant-numeric: tabular-nums; }
+// Merchant auth: allow POST /api/merchant/login without header
+function requireMerchant(req, res, next) {
+  const open = [/^\/api\/merchant\/login$/];
+  if (open.some(rx => rx.test(req.path))) return next();
+  const m = req.headers["x-merchant-code"];
+  if (!m) return res.status(401).json({ error: "Unauthorized (merchant)" });
+  req.merchantCode = String(m);
+  next();
+}
 
-    .thumb{ position:relative; background:#f5f7fb; border-inline-end:2px dashed #d1d5db; display:grid; place-items:center; padding:8px; }
-    .thumb::before, .thumb::after{ content:""; position:absolute; inset-inline-end:-11px; width:22px; height:22px; border-radius:80%; box-shadow: inset 0 0 0 999px var(--page), inset 0 0 0 1px rgba(0,0,0,.06) }
-    .thumb::before{ top:-11px } .thumb::after{ bottom:-11px }
+// ===== Root -> unified login page =====
+app.get("/", (req, res) => res.sendFile(join(__dirname, "login.html")));
 
-    .logo{ width:68px; height:68px; border-radius:14px; overflow:hidden; border:0px solid #e5e7eb; display:grid; place-items:center; font-weight:900; color:#475569; background:#fff; font-size:22px; }
-    .info{ padding:12px 14px 14px }
-    .rowTop{ display:flex; justify-content:space-between; align-items:center; gap:8px }
-    .badge{display:inline-block; font-weight:900; padding:6px 12px; border-radius:999px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-size:13px}
-    .name{font-weight:900; font-size:18px; margin:6px 0 8px}
-    .kv{ display:grid; grid-template-columns: 110px 1fr 40px; gap:6px 8px; align-items:center; }
-    .k2{ color:var(--ink2) }
-    .mapIcon{display:inline-grid; place-items:center; width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,var(--pri),var(--pri-700)); color:#fff; text-decoration:none}
-    .mapIcon svg{width:18px;height:18px;display:block}
-
-    /* ===== Base modals ===== */
-    .modal{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; place-items:center; padding:20px; z-index:50}
-    .modalBox{background:#0f172a; color:#e2e8f0; width:min(900px,95vw); border-radius:16px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow)}
-    .modalHead{display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08)}
-    .close{background:transparent;border:1px solid rgba(255,255,255,.2);color:#e2e8f0;border-radius:10px;padding:8px 10px;cursor:pointer}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.08);text-align:start}
-    .empty{ text-align:center; color:#94a3b8; padding:20px }
-    tr.txRow{ cursor:pointer; } tr.txRow:hover{ background:rgba(255,255,255,.03); }
-
-    /* ===== Rating modal ===== */
-    .rateBox{ background:#0f172a; color:#e2e8f0; width:min(520px,95vw); border-radius:16px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow) }
-    .rateBody{ padding:14px 16px 18px }
-    .rateHead{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.08) }
-    .rateStars{ display:flex; gap:8px; align-items:center; justify-content:center; padding:10px 0 6px }
-    .rateStars button{ background:transparent; border:none; cursor:pointer; font-size:28px; line-height:1; color:#475569; transition:.15s }
-    .rateStars button.on{ color:#fbbf24 }
-    .rateMeta{ text-align:center; color:#94a3b8; font-size:13px; margin-top:4px }
-    .rateActions{ display:flex; gap:10px; justify-content:flex-end; padding:10px 16px 16px }
-    textarea.rateComment{ width:100%; min-height:90px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:#0b122a; color:#e2e8f0; padding:10px 12px; outline:none }
-
-    /* ===== Merchant detail modal (with slider) ===== */
-    .mBox{ background:#0f172a; color:#e2e8f0; width:min(300px,95vw); border-radius:18px; border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow) }
-    .mHead{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08) }
-    .mRow{ display:flex; align-items:center; gap:12px }
-    .mLogo{ width:64px; height:64px; border-radius:14px; overflow:hidden; background:#0b122a; border:1px solid rgba(255,255,255,.08); display:grid; place-items:center }
-    .mLogo img{ width:100%; height:100%; object-fit:cover }
-    .mName{ font-weight:900; font-size:18px }
-    .mCat{ color:#94a3b8; font-size:13px }
-    .mBody{ padding:14px 16px 18px }
-    .mDetails{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px }
-    .mDetails .label{ color:#94a3b8 }
-    .mPhone a{ color:#e2e8f0; text-decoration:none }
-    .social{ display:flex; gap:8px; align-items:center }
-    .sicon{ width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background:#0b122a; border:1px solid rgba(255,255,255,.12); color:#e2e8f0; text-decoration:none }
-    .sicon svg{ width:18px; height:18px; display:block }
-
-    /* Slider */
-    .slider{ position:relative; width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden; background:#0b122a; border:1px solid rgba(255,255,255,.08) }
-    .slider img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .35s ease; }
-    .slider img.show{ opacity:1; }
-    .navBtn{ position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.25); color:#fff; cursor:pointer }
-    .navBtn.prev{ left:10px } .navBtn.next{ right:10px }
-    .dots{ position:absolute; left:50%; bottom:8px; transform:translateX(-50%); display:flex; gap:6px }
-    .dot{ width:8px; height:8px; border-radius:999px; background:rgba(255,255,255,.45); border:1px solid rgba(255,255,255,.6); opacity:.6 }
-    .dot.on{ background:#fff; opacity:1 }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="headerTop">
-      <div class="brand">
-        <img src="/logo-discount.svg" alt="Discount" onerror="this.style.display='none'">
-        <h2 style="margin:0">منصة دسكاونت الإلكترونية</h2>
-      </div>
-      <button id="logout" class="btn secondary">تسجيل خروج</button>
-    </div>
-    <div class="tagline">توفير شهري يصل إلى 150 ألف دينار</div>
-
-    <!-- بطاقة العميل -->
-    <div class="clientWrap">
-      <div id="clientCard" class="clientCard tier-basic" role="button" tabindex="0" title="اضغط لعرض السجل">
-        <div class="top">
-          <div class="cname" id="cName">—</div>
-          <div class="v" id="cCategory">فئة: —</div>
-        </div>
-        <div class="grid">
-          <div class="k">رقم البطاقة</div><div class="v" id="cCode">—</div>
-          <div class="k">الرصيد المتبقي</div><div class="v" id="cPoints">0</div>
-          <div class="k">تاريخ النفاذ</div><div class="v" id="cExpiry">—</div>
-        </div>
-        <img class="logo" src="/logo-discount.svg" alt="Discount" onerror="this.style.display='none'">
-        <div class="hint">اضغط لعرض كل العمليات</div>
-      </div>
-    </div>
-
-    <div class="card list">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:0 4px 8px">
-        <h3 style="margin:0">المتاجر</h3>
-        <button id="btnReload" class="btn">إعادة تحميل</button>
-      </div>
-
-      <div class="controls">
-        <select id="catFilter" class="select">
-          <option value="">كل الفئات</option>
-        </select>
-        <input id="search" class="search" type="search" placeholder="ابحث عن تاجر...">
-        <button id="clear" class="btn secondary">مسح</button>
-      </div>
-
-      <div id="grid" class="grid"></div>
-      <div id="empty" class="empty" style="display:none;">لا توجد متاجر حالياً.</div>
-    </div>
-  </div>
-
-  <!-- Modal: سجل العمليات -->
-  <div id="txModal" class="modal" data-modal="tx">
-    <div class="modalBox">
-      <div class="modalHead">
-        <h3 style="margin:0">سجل عمليات العميل</h3>
-        <button class="close" id="closeModal">إغلاق</button>
-      </div>
-      <div style="overflow:auto; max-height:70vh">
-        <table>
-          <thead>
-            <tr><th>التاريخ</th><th>المتجر</th><th>الفاتورة</th><th>الخصم</th><th>المستحق</th></tr>
-          </thead>
-          <tbody id="txBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: التقييم -->
-  <div id="rateModal" class="modal" data-modal="rate">
-    <div class="rateBox">
-      <div class="rateHead">
-        <strong id="rateTitle">تقييم المتجر</strong>
-        <button class="close" id="closeRate">إغلاق</button>
-      </div>
-      <div class="rateBody">
-        <div class="rateStars" id="starsWrap">
-          <button data-v="1">★</button>
-          <button data-v="2">★</button>
-          <button data-v="3">★</button>
-          <button data-v="4">★</button>
-          <button data-v="5">★</button>
-        </div>
-        <div class="rateMeta" id="rateMeta">اختر عدد النجوم</div>
-        <div style="margin-top:10px">
-          <label style="display:block;margin:0 0 6px;color:#cbd5e1">تعليق (اختياري)</label>
-          <textarea id="rateComment" class="rateComment" placeholder="اكتب ملاحظتك..."></textarea>
-        </div>
-        <div class="rateActions">
-          <button id="submitRate" class="btn">إرسال التقييم</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: تفاصيل التاجر (بسلايدر) -->
-  <div id="mModal" class="modal" data-modal="merchant">
-    <div class="mBox">
-      <div class="mHead">
-        <div class="mRow">
-          <div class="mLogo"><img id="mmLogo" alt=""></div>
-          <div>
-            <div class="mName" id="mmName">—</div>
-            <div class="mCat" id="mmCategory">فئة: —</div>
-          </div>
-        </div>
-        <button class="close" id="closeMM">إغلاق</button>
-      </div>
-      <div class="mBody">
-        <div class="mDetails">
-          <div class="mPhone"><span class="label">الهاتف:</span> <a id="mmPhone" href="#" target="_blank" rel="noopener">—</a></div>
-          <div class="social">
-            <a id="mmIG" class="sicon" href="#" target="_blank" rel="noopener" title="Instagram" style="display:none">
-              <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></svg>
-            </a>
-            <a id="mmFB" class="sicon" href="#" target="_blank" rel="noopener" title="Facebook" style="display:none">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M14 8h2V5h-2a4 4 0 00-4 4v2H8v3h2v6h3v-6h2.2l.8-3H13V9a1 1 0 011-1z" fill="currentColor"/></svg>
-            </a>
-          </div>
-        </div>
-
-        <!-- السلايدر -->
-        <div class="slider" id="mmSlider">
-          <img id="mmSlideA" class="show" alt="">
-          <img id="mmSlideB" alt="">
-          <button class="navBtn prev" id="mmPrev">‹</button>
-          <button class="navBtn next" id="mmNext">›</button>
-          <div class="dots" id="mmDots"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-<script>
-let CLIENT=null, MERCHANTS=[];
-let RATE_CTX = { merchant_code:"", merchant_name:"", transaction_id:"", rating:0 };
-
-const $ = s => document.querySelector(s);
-function hClient(){ const c = localStorage.getItem('x-client-code'); return c? {'x-client-code':c} : {}; }
-
-$('#logout').onclick = () => { localStorage.removeItem('clientLogin'); localStorage.removeItem('x-client-code'); location.href = '/login.html'; };
-
-// إغلاق المودالات على الخلفية + إيقاف السلايدر عند غلق تفاصيل التاجر
-document.addEventListener('click', (e)=>{
-  const m = e.target.closest('.modal');
-  if(m && e.target===m){
-    m.style.display='none';
-    if(m.id==='mModal') stopSlider();
-  }
+// ===== Client API Routes =====
+app.post("/api/login", async (req, res) => {
+  const mod = await import("./api/login.js"); return mod.default(req, res);
 });
 
-function setTierTheme(categoryText){
-  const card = $('#clientCard');
-  const norm = String(categoryText||'').trim().toLowerCase().replace(/[أإآ]/g,'ا');
-  card.classList.remove('tier-basic','tier-silver','tier-gold','tier-platinum');
-  if (/(فضي|فضيه|silver)/.test(norm))      card.classList.add('tier-silver');
-  else if (/(ذهبي|ذهبيه|gold)/.test(norm)) card.classList.add('tier-gold');
-  else if (/(بلاتين|بلاتينيوم|platinum)/.test(norm)) card.classList.add('tier-platinum');
-  else                                      card.classList.add('tier-basic');
-}
-
-function hydrate(){
-  try{
-    const s = localStorage.getItem('clientLogin'); if(!s) return false;
-    CLIENT = JSON.parse(s);
-    if (CLIENT?.code) {
-      const cur = localStorage.getItem('x-client-code');
-      if (cur !== String(CLIENT.code)) localStorage.setItem('x-client-code', String(CLIENT.code));
-    }
-    $('#cName').textContent = CLIENT.name || '—';
-    $('#cCode').textContent = CLIENT.code || '—';
-    $('#cPoints').textContent = (CLIENT.points||0).toLocaleString('ar-IQ');
-    $('#cExpiry').textContent = CLIENT.expiry || '—';
-    $('#cCategory').textContent = 'فئة: ' + (CLIENT.category || '—');
-    setTierTheme(CLIENT.category);
-    return true;
-  }catch{ return false; }
-}
-
-function buildMapsUrl(m){
-  if(m.lat && m.lng) return `https://www.google.com/maps?q=${m.lat},${m.lng}`;
-  const q = m.maps_url || m.address || m.location || m.name || "";
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
-}
-function logoHTML(m){
-  const img = m.logo || m.logo_url || m.image;
-  if(img) return `<img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover" />`;
-  const letter = (m.name||'?').trim().slice(0,1);
-  return `<span>${letter}</span>`;
-}
-function discountText(m){
-  const type = String(m.discount_type||"").toLowerCase();
-  const val = Number(m.discount_value||0);
-  const pct = Number(m.discount_percent||0);
-  if(type === "percent" || pct) return `خصم ${pct||val}%`;
-  if(type === "fixed" && val) return `خصم ${Number(val).toLocaleString('ar-IQ')} د.ع`;
-  if(val && !pct) return `خصم ${val}%`; return "خصم";
-}
-
-/* نجوم التقييم (عرض) */
-function starsHTML(v){
-  const n = Math.max(0, Math.min(5, Number(v)||0));
-  const full = Math.floor(n);
-  const half = (n - full) >= 0.5 ? 1 : 0;
-  const empty = 5 - full - half;
-  let html = `<div class="stars">`;
-  for(let i=0;i<full;i++) html += `<span class="star full">★</span>`;
-  if (half) html += `<span class="star half">★</span>`;
-  for(let i=0;i<empty;i++) html += `<span class="star empty">★</span>`;
-  html += `<span class="rateNum">${n.toFixed(1)}</span></div>`;
-  return html;
-}
-
-/* ===== Helpers: socials & images ===== */
-function getSocial(m, keys){
-  for(const k of keys){ if(m[k]) return String(m[k]).trim(); }
-  return '';
-}
-function getImages(m){
-  if (Array.isArray(m.images) && m.images.length) return m.images.slice(0,5);
-  if (Array.isArray(m.gallery) && m.gallery.length) return m.gallery.slice(0,5);
-  if (typeof m.gallery === 'string') {
-    const arr = m.gallery.split(',').map(s=>s.trim()).filter(Boolean);
-    if(arr.length) return arr.slice(0,5);
-  }
-  const imgs=[];
-  const bases=['image','img','photo','pic'];
-  for(const b of bases){
-    for(let i=1;i<=5;i++){
-      const k=b+i;
-      if(m[k]) imgs.push(m[k]);
-    }
-  }
-  if(!imgs.length && (m.logo_url || m.logo || m.image)) imgs.push(m.logo_url||m.logo||m.image);
-  return imgs.slice(0,5);
-}
-
-/* ====== Slider logic ====== */
-let SLIDER = { pics:[], idx:0, timer:null, showingA:true };
-function renderDots(){
-  const dots = $('#mmDots'); dots.innerHTML='';
-  SLIDER.pics.forEach((_,i)=>{
-    const d=document.createElement('div'); d.className='dot'+(i===SLIDER.idx?' on':'');
-    d.addEventListener('click', ()=>showSlide(i,true));
-    dots.appendChild(d);
-  });
-}
-function showSlide(i, manual=false){
-  if(!SLIDER.pics.length) return;
-  SLIDER.idx = (i+SLIDER.pics.length)%SLIDER.pics.length;
-  const src = SLIDER.pics[SLIDER.idx];
-  const a = $('#mmSlideA'), b=$('#mmSlideB');
-  const showEl = SLIDER.showingA ? b : a;
-  const hideEl = SLIDER.showingA ? a : b;
-  showEl.src = src;
-  showEl.classList.add('show');
-  hideEl.classList.remove('show');
-  SLIDER.showingA = !SLIDER.showingA;
-  // تحديث النقاط
-  [...$('#mmDots').children].forEach((d,ix)=> d.classList.toggle('on', ix===SLIDER.idx));
-  // إعادة تشغيل المؤقت لو نقرت يدويًا
-  if(manual) restartTimer();
-}
-function nextSlide(){ showSlide(SLIDER.idx+1); }
-function prevSlide(){ showSlide(SLIDER.idx-1,true); }
-function restartTimer(){
-  stopSlider();
-  if(SLIDER.pics.length>1){
-    SLIDER.timer = setInterval(nextSlide, 2000);
-  }
-}
-function stopSlider(){
-  if(SLIDER.timer){ clearInterval(SLIDER.timer); SLIDER.timer=null; }
-}
-function startSlider(pics){
-  SLIDER.pics = Array.isArray(pics)? pics.filter(Boolean): [];
-  SLIDER.idx = 0; SLIDER.showingA = true;
-  renderDots();
-  // تهيئة الشريحتين
-  $('#mmSlideA').src = SLIDER.pics[0] || '';
-  $('#mmSlideA').classList.add('show');
-  $('#mmSlideB').classList.remove('show');
-  restartTimer();
-}
-$('#mmPrev').addEventListener('click', prevSlide);
-$('#mmNext').addEventListener('click', ()=>showSlide(SLIDER.idx+1,true));
-
-/* ===== Merchant detail modal ===== */
-function openMerchantModal(m){
-  const name = m.name || m.merchant_name || m.code || m.merchant_code || '—';
-  const cat  = m.category || m.Category || '—';
-  const logo = m.logo_url || m.logo || m.image || '';
-  const phone= m.phone || m.tel || m.mobile || '—';
-
-  $('#mmName').textContent = name;
-  $('#mmCategory').textContent = 'فئة: ' + cat;
-  const L = $('#mmLogo');
-  if(logo){ L.src=logo; L.style.display='block'; } else { L.removeAttribute('src'); L.style.display='none'; }
-
-  const telLink = /^(\+?\d[\d\s-]{3,})$/.test(String(phone)) ? `tel:${String(phone).replace(/\s+/g,'')}` : '#';
-  const aPhone = $('#mmPhone'); aPhone.textContent = phone || '—'; aPhone.href = telLink;
-
-  const ig = getSocial(m, ['instagram','instagram_url','ig']);
-  const fb = getSocial(m, ['facebook','facebook_url','fb']);
-  const igEl = $('#mmIG'), fbEl=$('#mmFB');
-  if(ig){ igEl.href = ig.startsWith('http')? ig : ('https://instagram.com/'+ig.replace(/^@/,'')); igEl.style.display='grid'; } else igEl.style.display='none';
-  if(fb){ fbEl.href = fb.startsWith('http')? fb : ('https://facebook.com/'+fb.replace(/^@/,'')); fbEl.style.display='grid'; } else fbEl.style.display='none';
-
-  const pics = getImages(m);
-  startSlider(pics);
-
-  $('#mModal').style.display='grid';
-}
-document.getElementById('closeMM').onclick = ()=>{ document.getElementById('mModal').style.display='none'; stopSlider(); };
-
-/* ===== Render merchants ===== */
-function renderMerchants(list){
-  const grid = $('#grid');
-  grid.innerHTML = '';
-  if(!Array.isArray(list) || !list.length){ $('#empty').style.display='block'; return; }
-  $('#empty').style.display='none';
-
-  list.forEach(m=>{
-    const minBill = Number(m.min_bill || m.minBill || 0);
-    const phone = m.phone || m.tel || m.mobile || '';
-    const name = m.name || '-';
-    const mapUrl = buildMapsUrl(m);
-
-    const el = document.createElement('div');
-    el.className = 'coupon';
-    el.innerHTML = `
-      <div class="thumb"><div class="logo">${logoHTML(m)}</div></div>
-      <div class="info">
-        <div class="rowTop">
-          <span class="badge">${discountText(m)}</span>
-          ${starsHTML(m.stars)}
-        </div>
-        <div class="name">${name}</div>
-        <div class="kv">
-          <div class="k2">الهاتف</div><div>${phone || '—'}</div>
-          <a class="mapIcon" href="${mapUrl}" target="_blank" title="خرائط">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 21s7-4.35 7-10a7 7 0 10-14 0c0 5.65 7 10 7 10z" stroke="currentColor" stroke-width="1.7"/>
-              <circle cx="12" cy="11" r="2.5" stroke="currentColor" stroke-width="1.7"/>
-            </svg>
-          </a>
-          <div class="k2">الحد الأدنى</div><div>${minBill ? minBill.toLocaleString('ar-IQ')+' د.ع' : '—'}</div><div></div>
-        </div>
-      </div>`;
-    // افتح نافذة تفاصيل التاجر عند الضغط (مع تجاهل الروابط)
-    el.addEventListener('click', (ev)=>{ if(!ev.target.closest('a')) openMerchantModal(m); });
-    grid.appendChild(el);
-  });
-}
-// ✅ helper: يرجّع الفئة من أي حقل ويطبعها بشكل موحّد
-function getCat(m){
-  const raw = m?.category ?? m?.Category ?? m?.cat ?? m?.type ?? m?.group
-            ?? m?.category_name ?? m?.category_ar ?? '';
-  return String(raw || '')
-    .trim()
-    .replace(/[أإآ]/g,'ا')      // توحيد الألف
-    .replace(/\s+/g,' ');       // تقليل المسافات
-}
-
-/* ===== ملء قائمة الفئات ===== */
-function fillCategories(){
-  const sel = $('#catFilter');
-  const cats = [...new Set(MERCHANTS.map(getCat).filter(Boolean))]
-                .sort((a,b)=>a.localeCompare(b,'ar'));
-  sel.innerHTML = `<option value="">كل الفئات</option>` +
-    cats.map(c=>`<option value="${c.toLowerCase()}">${c}</option>`).join('');
-}
-
-/* ===== تطبيق الفلاتر ===== */
-function applyFilters(){
-  const q = $('#search').value.trim().toLowerCase();
-  const catVal = $('#catFilter').value; // lowercase بعد التنميط
-  let list = MERCHANTS.slice();
-
-  if (catVal){
-    list = list.filter(m => getCat(m).toLowerCase() === catVal);
-  }
-  if (q){
-    list = list.filter(m => {
-      const hay = `${m.name||''} ${m.phone||''} ${m.merchant_code||m.code||''}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }
-
-  list.sort((a,b)=> (Number(b.stars||0) - Number(a.stars||0)) ||
-                    String(a.name||'').localeCompare(String(b.name||''),'ar'));
-  renderMerchants(list);
-}
-
-document.getElementById('search').addEventListener('input', applyFilters);
-document.getElementById('catFilter').addEventListener('change', applyFilters);
-document.getElementById('clear').addEventListener('click', ()=>{ document.getElementById('search').value=''; document.getElementById('catFilter').value=''; applyFilters(); });
-document.getElementById('btnReload').addEventListener('click', ()=> loadMerchants(true));
-
-async function loadMerchants(force=false){
-  if(!force && MERCHANTS.length){ applyFilters(); return; }
-  const r = await fetch('/api/merchants', { headers: hClient() });
-  const text = await r.text(); let data;
-  try { data = JSON.parse(text); } catch { throw new Error(text); }
-  if(!r.ok) throw new Error(data.error||r.status);
-  MERCHANTS = Array.isArray(data) ? data : [];
-  fillCategories();
-  applyFilters();
-}
-
-/* ==== التقييم ==== */
-function openRateModal(ctx){
-  RATE_CTX = { ...ctx, rating: 0 };
-  document.getElementById('rateTitle').textContent = `تقييم: ${ctx.merchant_name || ctx.merchant_code || 'متجر'}`;
-  document.getElementById('rateComment').value = '';
-  highlightStars(0);
-  document.getElementById('rateModal').style.display = 'grid';
-}
-function highlightStars(n){
-  [...document.getElementById('starsWrap').querySelectorAll('button')].forEach(b=>{
-    const v = Number(b.dataset.v);
-    b.classList.toggle('on', v <= n);
-  });
-  document.getElementById('rateMeta').textContent = n ? `أعطيت ${n} نجوم` : 'اختر عدد النجوم';
-}
-document.getElementById('starsWrap').addEventListener('click', (e)=>{
-  const b = e.target.closest('button[data-v]');
-  if(!b) return;
-  RATE_CTX.rating = Number(b.dataset.v);
-  highlightStars(RATE_CTX.rating);
+app.get("/api/merchants", requireClient, async (req, res) => {
+  const mod = await import("./api/merchants.js").catch(()=>({default:(rq,rs)=>rs.json([])}));
+  return mod.default(req, res);
 });
-document.getElementById('closeRate').onclick = ()=> document.getElementById('rateModal').style.display='none';
 
-async function submitRating(){
-  if(!(RATE_CTX.rating >= 1 && RATE_CTX.rating <= 5)){
-    alert('اختر تقييماً من 1 إلى 5 نجوم'); return;
-  }
-  if (!localStorage.getItem('x-client-code') && CLIENT?.code) {
-    localStorage.setItem('x-client-code', String(CLIENT.code));
-  }
-  const payload = {
-    merchant_code: RATE_CTX.merchant_code,
-    rating: RATE_CTX.rating,
-    comment: document.getElementById('rateComment').value || '',
-    transaction_id: RATE_CTX.transaction_id || ''
-  };
-  const r = await fetch('/api/rate', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json', ...hClient() },
-    body: JSON.stringify(payload)
-  });
-  const t = await r.text(); let data;
-  try{ data = JSON.parse(t); }catch{ data = { error:t }; }
-  if(!r.ok){ alert(data.error || 'تعذر إرسال التقييم'); return; }
-  document.getElementById('rateModal').style.display = 'none';
-  alert('تم تسجيل تقييمك، شكراً ❤️');
-}
-document.getElementById('submitRate').addEventListener('click', submitRating);
+app.get("/api/qr", requireClient, async (req, res) => {
+  const mod = await import("./api/qr.js").catch(()=>({default:(rq,rs)=>rs.json({})}));
+  return mod.default(req, res);
+});
 
-/* ==== سجل العمليات ==== */
+// keep legacy /api/redeem disabled (moved to merchant only)
+app.post("/api/redeem", requireClient, async (req, res) => {
+  const mod = await import("./api/redeem.js"); return mod.default(req, res);
+});
 
-async function loadTransactions(){
-  const modal = document.getElementById('txModal');
-  const body  = document.getElementById('txBody');
-  body.innerHTML='';
-  modal.style.display='grid';
+// ===== Merchant API Routes =====
+app.post("/api/merchant/login", async (req, res) => {
+  const mod = await import("./api/merchant-login.js"); return mod.default(req, res);
+});
 
-  const r = await fetch('/api/client/transactions', { headers: hClient() });
-  const text = await r.text(); let data;
-  try { data = JSON.parse(text); } catch { data = { error: text }; }
+app.post("/api/merchant/redeem", requireMerchant, async (req, res) => {
+  const mod = await import("./api/merchant-redeem.js"); return mod.default(req, res);
+});
 
-  if(!r.ok){ body.innerHTML = `<tr><td colspan="5">${data.error||r.status}</td></tr>`; return; }
-  const tx = data.transactions || [];
-  if(!tx.length){ body.innerHTML = `<tr><td colspan="5">لا توجد عمليات.</td></tr>`; return; }
+app.get("/api/merchant/customers", requireMerchant, async (req, res) => {
+  const mod = await import("./api/merchant-customers.js"); return mod.default(req, res);
+});
 
-  tx.forEach(t=>{
-    // التاريخ
-    const ts = t.ts || t.created_at || t.createdAt;
-    const when = ts ? new Date(ts).toLocaleString('ar-IQ') : '—';
-    // التاجر
-    const merchant = t.merchant_name || t.merchant || t.merchant_code || t.code || '—';
-    // إجمالي الفاتورة
-    const total = Number(t.bill_total ?? t.total ?? t.bill ?? 0);
-    // الخصم = عمود savings من الشيت
-    const savings = Number(t.savings ?? 0);
-    // المستحق = عمود "The due" من الشيت
-    const due = Number(t['The due'] ?? t.the_due ?? 0);
-
-    const tr = document.createElement('tr');
-    tr.className = 'txRow';
-    tr.innerHTML = `
-      <td>${when}</td>
-      <td>${merchant}</td>
-      <td>${total ? total.toLocaleString('ar-IQ') : '—'}</td>
-      <td>${savings ? savings.toLocaleString('ar-IQ') : '—'}</td>
-      <td>${due ? due.toLocaleString('ar-IQ') : '—'}</td>
-    `;
-
-    const ctx = {
-      merchant_code: t.merchant_code || '',
-      merchant_name: t.merchant_name || t.merchant_code || '',
-      transaction_id: t.transaction_id || t.id || ts || ''
-    };
-    tr.addEventListener('click', ()=> openRateModal(ctx));
-    body.appendChild(tr);
-  });
-}
-
-
-document.getElementById('clientCard').addEventListener('click', loadTransactions);
-document.getElementById('clientCard').addEventListener('keypress', (e)=>{ if(e.key==='Enter') loadTransactions(); });
-document.getElementById('closeModal').onclick = ()=> document.getElementById('txModal').style.display='none';
-
-if(!hydrate()){ location.href='/login.html'; } else { loadMerchants(); }
-</script>
-</body>
-</html>
+// ===== Start =====
+app.listen(PORT, () => {
+  console.log(`✅ Local dev server running: http://localhost:${PORT}`);
+});
+app.get("/api/client/transactions", requireClient, async (req, res) => {
+  const mod = await import("./api/client-transactions.js"); return mod.default(req, res);
+});
+app.get("/api/client/transactions", requireClient, async (req, res) => {
+  const mod = await import("./api/client-transactions.js");
+  return mod.default(req, res);
+});
+app.post("/api/rate", async (req, res) => {
+  const mod = await import("./api/rate.js"); return mod.default(req, res);
+});
+app.post("/api/rate", async (req, res) => {
+  const mod = await import("./api/rate.js"); return mod.default(req, res);
+});
