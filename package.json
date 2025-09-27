@@ -12,3 +12,4 @@
     "googleapis": "^140.0.0"
   }
 }
+{ "scripts": { "start": "node index.js" } }

@@ -29,4 +29,5 @@ export default async function clientLogin(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
-
+import handler from "../api/login.js"; // كودك الحالي يرجّع (req,res)
+export default async function (req, res) { return handler(req, res); }
