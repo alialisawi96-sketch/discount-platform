@@ -13,84 +13,127 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
+// ===== Middlewares =====
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 
 // Serve static files (UI)
 app.use(express.static(__dirname));
 
 // ===== Auth Middlewares =====
-// Client auth: allow POST /api/login without header
 function requireClient(req, res, next) {
   const open = [/^\/api\/login$/];
-  if (open.some(rx => rx.test(req.path))) return next();
+  if (open.some((rx) => rx.test(req.path))) return next();
   const client = req.headers["x-client-code"];
   if (!client) return res.status(401).json({ error: "Unauthorized (client)" });
   req.clientCode = String(client);
   next();
 }
 
-// Merchant auth: allow POST /api/merchant/login without header
 function requireMerchant(req, res, next) {
   const open = [/^\/api\/merchant\/login$/];
-  if (open.some(rx => rx.test(req.path))) return next();
+  if (open.some((rx) => rx.test(req.path))) return next();
   const m = req.headers["x-merchant-code"];
   if (!m) return res.status(401).json({ error: "Unauthorized (merchant)" });
   req.merchantCode = String(m);
   next();
 }
 
-// ===== Root -> unified login page =====
-app.get("/", (req, res) => res.sendFile(join(__dirname, "login.html")));
+// ===== Health & Root =====
+app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.get("/", (_req, res) => res.sendFile(join(__dirname, "login.html")));
 
-// ===== Client API Routes =====
+// ===== Client API =====
 app.post("/api/login", async (req, res) => {
-  const mod = await import("./api/login.js"); return mod.default(req, res);
+  try {
+    const mod = await import("./api/login.js");
+    return mod.default(req, res);
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "login failed" });
+  }
 });
 
 app.get("/api/merchants", requireClient, async (req, res) => {
-  const mod = await import("./api/merchants.js").catch(()=>({default:(rq,rs)=>rs.json([])}));
-  return mod.default(req, res);
+  try {
+    const mod = await import("./api/merchants.js");
+    return mod.default(req, res);
+  } catch {
+    return res.json([]); // فشل؟ رجّع قائمة فارغة
+  }
 });
 
 app.get("/api/qr", requireClient, async (req, res) => {
-  const mod = await import("./api/qr.js").catch(()=>({default:(rq,rs)=>rs.json({})}));
-  return mod.default(req, res);
+  try {
+    const mod = await import("./api/qr.js");
+    return mod.default(req, res);
+  } catch {
+    return res.json({});
+  }
 });
 
-// keep legacy /api/redeem disabled (moved to merchant only)
-app.post("/api/redeem", requireClient, async (req, res) => {
-  const mod = await import("./api/redeem.js"); return mod.default(req, res);
+// ✅ وحيد وغير مكرر
+app.get("/api/client/transactions", requireClient, async (req, res) => {
+  try {
+    const mod = await import("./api/client-transactions.js");
+    return mod.default(req, res);
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "transactions failed" });
+  }
 });
 
-// ===== Merchant API Routes =====
+// ✅ وحيد وغير مكرر
+app.post("/api/rate", async (req, res) => {
+  try {
+    const mod = await import("./api/rate.js");
+    return mod.default(req, res);
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "rate failed" });
+  }
+});
+
+// ===== Merchant API =====
 app.post("/api/merchant/login", async (req, res) => {
-  const mod = await import("./api/merchant-login.js"); return mod.default(req, res);
+  try {
+    const mod = await import("./api/merchant-login.js");
+    return mod.default(req, res);
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "merchant login failed" });
+  }
 });
 
 app.post("/api/merchant/redeem", requireMerchant, async (req, res) => {
-  const mod = await import("./api/merchant-redeem.js"); return mod.default(req, res);
+  try {
+    const mod = await import("./api/merchant-redeem.js");
+    return mod.default(req, res);
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "merchant redeem failed" });
+  }
 });
 
 app.get("/api/merchant/customers", requireMerchant, async (req, res) => {
-  const mod = await import("./api/merchant-customers.js"); return mod.default(req, res);
+  try {
+    const mod = await import("./api/merchant-customers.js");
+    return mod.default(req, res);
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "merchant customers failed" });
+  }
 });
+
+// ===== Legacy (اختياري: فعّله أو علّقه) =====
+// إذا تريد فعلاً تعطّله، علّق الأسطر التالية
+app.post("/api/redeem", requireClient, async (req, res) => {
+  try {
+    const mod = await import("./api/redeem.js");
+    return mod.default(req, res);
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "redeem failed" });
+  }
+});
+
+// ===== 404 للـ API فقط (خلّي الملفات الثابتة تظل تشتغل) =====
+app.use("/api", (_req, res) => res.status(404).json({ error: "Not Found" }));
 
 // ===== Start =====
 app.listen(PORT, () => {
-  console.log(`✅ Local dev server running: http://localhost:${PORT}`);
-});
-app.get("/api/client/transactions", requireClient, async (req, res) => {
-  const mod = await import("./api/client-transactions.js"); return mod.default(req, res);
-});
-app.get("/api/client/transactions", requireClient, async (req, res) => {
-  const mod = await import("./api/client-transactions.js");
-  return mod.default(req, res);
-});
-app.post("/api/rate", async (req, res) => {
-  const mod = await import("./api/rate.js"); return mod.default(req, res);
-});
-app.post("/api/rate", async (req, res) => {
-  const mod = await import("./api/rate.js"); return mod.default(req, res);
+  console.log(`✅ Server listening on port ${PORT}`);
 });
