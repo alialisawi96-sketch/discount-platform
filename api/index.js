@@ -50,7 +50,10 @@ app.all("/api/login", async (req, res) => {
     if (req.method === "GET") {
       // بعض المتصفحات ترسل GET – نحول query إلى body
       const { client_code, code } = req.query || {};
+      // خزّن الكود في body بحيث يقرأه المعالج downstream
       req.body = { client_code: client_code || code };
+      // عدّل الطريقة إلى POST حتى يتجاوب معها login.js
+      req.method = 'POST';
     } else if (req.method !== "POST") {
       return res.status(405).json({ error: "Use POST /api/login with { client_code }" });
     }
@@ -104,7 +107,10 @@ app.all("/api/merchant/login", async (req, res) => {
   try {
     if (req.method === "GET") {
       const { merchant_code, code } = req.query || {};
+      // خزّن الكود في body بحيث يقرأه المعالج downstream
       req.body = { merchant_code: merchant_code || code };
+      // عدّل الطريقة إلى POST حتى يتجاوب معها merchant-login.js
+      req.method = 'POST';
     } else if (req.method !== "POST") {
       return res.status(405).json({ error: "Use POST /api/merchant/login with { merchant_code }" });
     }
