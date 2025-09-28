@@ -44,8 +44,17 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 app.get("/", (_req, res) => res.sendFile(join(__dirname, "login.html")));
 
 // ===== Client API =====
-app.post("/api/login", async (req, res) => {
+// استخدم app.all للتعامل مع GET و POST. نحول GET إلى body لنفس الدالة
+app.all("/api/login", async (req, res) => {
   try {
+    if (req.method === "GET") {
+      // بعض المتصفحات ترسل GET – نحول query إلى body
+      const { client_code, code } = req.query || {};
+      req.body = { client_code: client_code || code };
+    } else if (req.method !== "POST") {
+      return res.status(405).json({ error: "Use POST /api/login with { client_code }" });
+    }
+
     const mod = await import("./api/login.js");
     return mod.default(req, res);
   } catch (e) {
@@ -58,7 +67,7 @@ app.get("/api/merchants", requireClient, async (req, res) => {
     const mod = await import("./api/merchants.js");
     return mod.default(req, res);
   } catch {
-    return res.json([]); // فشل؟ رجّع قائمة فارغة
+    return res.json([]);
   }
 });
 
@@ -71,7 +80,6 @@ app.get("/api/qr", requireClient, async (req, res) => {
   }
 });
 
-// ✅ وحيد وغير مكرر
 app.get("/api/client/transactions", requireClient, async (req, res) => {
   try {
     const mod = await import("./api/client-transactions.js");
@@ -81,7 +89,6 @@ app.get("/api/client/transactions", requireClient, async (req, res) => {
   }
 });
 
-// ✅ وحيد وغير مكرر
 app.post("/api/rate", async (req, res) => {
   try {
     const mod = await import("./api/rate.js");
@@ -92,8 +99,16 @@ app.post("/api/rate", async (req, res) => {
 });
 
 // ===== Merchant API =====
-app.post("/api/merchant/login", async (req, res) => {
+// نفس الفكرة هنا: app.all تقبل GET وPOST وتحوّل GET إلى body
+app.all("/api/merchant/login", async (req, res) => {
   try {
+    if (req.method === "GET") {
+      const { merchant_code, code } = req.query || {};
+      req.body = { merchant_code: merchant_code || code };
+    } else if (req.method !== "POST") {
+      return res.status(405).json({ error: "Use POST /api/merchant/login with { merchant_code }" });
+    }
+
     const mod = await import("./api/merchant-login.js");
     return mod.default(req, res);
   } catch (e) {
@@ -119,8 +134,7 @@ app.get("/api/merchant/customers", requireMerchant, async (req, res) => {
   }
 });
 
-// ===== Legacy (اختياري: فعّله أو علّقه) =====
-// إذا تريد فعلاً تعطّله، علّق الأسطر التالية
+// ===== Legacy =====
 app.post("/api/redeem", requireClient, async (req, res) => {
   try {
     const mod = await import("./api/redeem.js");
@@ -130,7 +144,7 @@ app.post("/api/redeem", requireClient, async (req, res) => {
   }
 });
 
-// ===== 404 للـ API فقط (خلّي الملفات الثابتة تظل تشتغل) =====
+// ===== 404 للـ API فقط =====
 app.use("/api", (_req, res) => res.status(404).json({ error: "Not Found" }));
 
 // ===== Start =====
