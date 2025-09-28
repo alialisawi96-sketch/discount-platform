@@ -1,4 +1,9 @@
-"scripts": {
-  "start": "node api/index.js",
-  "dev": "node api/index.js"
+{
+  "name": "discount-platform",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node api/index.js"
+  }
 }
