@@ -206,5 +206,52 @@ $('loginBtn').onclick = async () => {
   }
 };
 </script>
+  <script>
+document.getElementById("loginBtn").addEventListener("click", async (e) => {
+  e.preventDefault();
+
+  const role = document.getElementById("role").value;     // "client" أو "merchant"
+  const code = document.getElementById("code").value.trim();
+
+  if (!code) return showMsg("رجاءً أدخل الكود", true);
+
+  // نحدد المسار حسب الدور
+  const url = role === "merchant" ? "/api/merchant/login" : "/api/login";
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(role === "merchant" ? { merchant_code: code } : { client_code: code })
+    });
+
+    if (!resp.ok) {
+      const err = await safeJson(resp);
+      return showMsg(err.error || `HTTP ${resp.status}`, true);
+    }
+
+    const data = await resp.json();
+    // TODO: هنا وجّه المستخدم للصفحة المناسبة
+    // مثال:
+    if (role === "merchant") {
+      // خزن كود التاجر إذا تحتاجه
+      localStorage.setItem("merchant_code", data.code || code);
+      location.href = "/merchant.html";
+    } else {
+      localStorage.setItem("client_code", data.code || code);
+      location.href = "/client.html";
+    }
+  } catch (e2) {
+    showMsg(e2.message || "Network error", true);
+  }
+
+  async function safeJson(r){ try { return await r.json(); } catch { return {}; } }
+  function showMsg(msg, isErr){
+    const el = document.getElementById("msg");
+    el.textContent = msg;
+    el.style.color = isErr ? "#fca5a5" : "#a7f3d0";
+  }
+});
+  </script>
 </body>
 </html>
