@@ -2,6 +2,10 @@
 import { read, toObj, findBy, RANGES } from "../lib/sheets.js";
 
 export default async function merchantLogin(req, res) {
+  // اقبل POST فقط
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Use POST /api/merchant/login with { merchant_code }" });
+  }
   try {
     const { merchant_code } = req.body || {};
     if (!merchant_code) return res.status(400).json({ error: "merchant_code is required" });
@@ -15,15 +19,16 @@ export default async function merchantLogin(req, res) {
 
     const m = toObj(h, row);
     let pct = Number(m.discount_percent || 0);
-    if (!pct && String(m.discount_type||"").toLowerCase() === "percent") {
+    if (!pct && String(m.discount_type || "").toLowerCase() === "percent") {
       pct = Number(m.discount_value || 0);
     }
-
     return res.json({
-      code: m.merchant_code || m.code,
+      ok: true,
+      role: "merchant",
+      code: m.merchant_code || m.code || "",
       name: m.name || "",
-      discount_percent: pct || 0,
       phone: m.phone || "",
+      discount_percent: pct || 0,
     });
   } catch (e) {
     return res.status(500).json({ error: e.message });
