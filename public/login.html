@@ -13,35 +13,19 @@
     }
     *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--ink);font-family:"Cairo",system-ui}
-
     .wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
     .stack{display:flex;flex-direction:column;align-items:center;gap:18px}
 
-    /* ===== الشعار في المنتصف ===== */
     .hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
     .hero img.logo{
-      width:min(360px,70vw);
-      height:auto; object-fit:contain;
-      filter: grayscale(1) brightness(0) invert(1) contrast(2);
-      opacity:.98; user-select:none; -webkit-user-drag:none; display:block;
+      width:min(360px,70vw);height:auto;object-fit:contain;
+      filter:grayscale(1) brightness(0) invert(1) contrast(2);
+      opacity:.98;user-select:none;-webkit-user-drag:none;display:block;
     }
     .brandWordmark{display:none;font-weight:900;font-size:42px;letter-spacing:.18em;text-transform:uppercase;color:#fff;opacity:.95}
     .brandLine{font-weight:800;font-size:28px;letter-spacing:.3px}
-
-    /* GIF المتحرك تحت الشعار */
-    .heroGif{
-      width:min(260px,58vw);
-      height:auto;
-      display:none;
-      border-radius:14px;
-      border:1px solid var(--bd);
-      box-shadow:0 12px 30px rgba(0,0,0,.35);
-    }
-
-    @media (max-width:520px){
-      .brandLine{font-size:22px}
-      .brandWordmark{font-size:34px}
-    }
+    .heroGif{width:min(260px,58vw);height:auto;display:none;border-radius:14px;border:1px solid var(--bd);box-shadow:0 12px 30px rgba(0,0,0,.35)}
+    @media (max-width:520px){ .brandLine{font-size:22px} .brandWordmark{font-size:34px} }
 
     .card{width:min(520px,95vw);background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;box-shadow:0 12px 30px rgba(0,0,0,.35)}
     .row{display:flex;gap:10px;flex-wrap:wrap}
@@ -63,8 +47,6 @@
         <img id="logoImg" class="logo" alt="Discount logo" referrerpolicy="no-referrer">
         <div id="brandWordmark" class="brandWordmark">DISCOUNT</div>
         <div class="brandLine">منصة دسكاونت الإلكترونية</div>
-
-        <!-- GIF المتحرك من Google Drive -->
         <img id="heroGif" class="heroGif" alt="Animated banner" loading="lazy" referrerpolicy="no-referrer">
       </div>
 
@@ -85,173 +67,99 @@
     </div>
   </div>
 
-<script>
-/* ===== Helpers ===== */
-const $ = id => document.getElementById(id);
-function say(t,err=false){ const m=$('msg'); m.style.color=err?'#fecaca':'#94a3b8'; m.textContent=t||''; }
-function parseJSON(text){ try{return JSON.parse(text)}catch{ return { error:text } } }
+  <!-- ===== سكربت موحّد (POST مضبوط + رسائل واضحة) ===== -->
+  <script>
+  const $ = id => document.getElementById(id);
+  function msg(t, err=false){ const m=$('msg'); m.style.color = err?'#fca5a5':'#94a3b8'; m.textContent=t||''; }
 
-// تحويل الأرقام العربية/الفارسية إلى إنكليزية
-const mapAR = '٠١٢٣٤٥٦٧٨٩', mapFA = '۰۱۲۳۴۵۶۷۸۹';
-function normalizeDigits(s=''){
-  return String(s)
-    .replace(/[٠-٩]/g, d => mapAR.indexOf(d))
-    .replace(/[۰-۹]/g, d => mapFA.indexOf(d))
-    .trim();
-}
+  // تحويل الأرقام العربية/الفارسية إلى إنكليزية
+  const mapAR='٠١٢٣٤٥٦٧٨٩', mapFA='۰۱۲۳۴۵۶۷۸۹';
+  function normalizeDigits(s=''){
+    return String(s)
+      .replace(/[٠-٩]/g, d => mapAR.indexOf(d))
+      .replace(/[۰-۹]/g, d => mapFA.indexOf(d))
+      .trim();
+  }
 
-/* ====== تحميل شعار Google Drive مع فfallback ====== */
-(function mountLogo(){
-  const driveId = '1SIL4hnVs972b-wyTLN0PEy0buKsuBsft';
-  const img = $('logoImg');
-  const text = $('brandWordmark');
-  const tries = [
-    `https://drive.google.com/uc?export=view&id=${driveId}`,
-    `https://drive.google.com/uc?id=${driveId}`,
-    'logo-discount.svg',
-    'logo-discount.png',
-    'logo-discount.PNG',
-    '/logo-discount.svg',
-    '/logo-discount.png',
-    '/logo-discount.PNG'
-  ];
-  let i = 0;
-  function next(){ if(i>=tries.length){ img.style.display='none'; text.style.display='block'; return; } img.src = tries[i++]; }
-  img.onload  = () => { img.style.display='block'; text.style.display='none'; };
-  img.onerror = next; next();
-})();
+  // تحميل شعار وجيف من Google Drive مع fallback
+  (function mountLogo(){
+    const driveId = '1SIL4hnVs972b-wyTLN0PEy0buKsuBsft';
+    const img = $('logoImg'), text = $('brandWordmark');
+    const tries = [
+      `https://drive.google.com/uc?export=view&id=${driveId}`,
+      `https://drive.google.com/uc?id=${driveId}`,
+      'logo-discount.svg','logo-discount.png','/logo-discount.svg','/logo-discount.png'
+    ];
+    let i=0; function next(){ if(i>=tries.length){ img.style.display='none'; text.style.display='block'; return; } img.src=tries[i++]; }
+    img.onload=()=>{ img.style.display='block'; text.style.display='none'; };
+    img.onerror=next; next();
+  })();
+  (function mountDriveGif(){
+    const id='15NmI9__IIDtEGUrJG8O8grAU2feajcz6';
+    const gif=$('heroGif'); const tries=[`https://drive.google.com/uc?export=view&id=${id}`,`https://drive.google.com/uc?id=${id}`];
+    let i=0; function load(){ if(i>=tries.length) return; gif.src=tries[i++]; }
+    gif.onload=()=>{ gif.style.display='block'; }; gif.onerror=load; load();
+  })();
 
-/* ====== تحميل GIF من Google Drive (اختياري) ====== */
-(function mountDriveGif(){
-  const id = '15NmI9__IIDtEGUrJG8O8grAU2feajcz6';
-  const gif = $('heroGif');
-  const tries = [
-    `https://drive.google.com/uc?export=view&id=${id}`,
-    `https://drive.google.com/uc?id=${id}`
-  ];
-  let i = 0;
-  function tryLoad(){ if(i>=tries.length) return; gif.src = tries[i++]; }
-  gif.onload  = ()=>{ gif.style.display='block'; };
-  gif.onerror = tryLoad; tryLoad();
-})();
+  // تهيئة الحقول
+  (function initUI(){
+    const lastRole = localStorage.getItem('lastRole') || 'client';
+    $('role').value = lastRole;
+    $('code').placeholder = lastRole==='client' ? 'أدخل كود العميل' : 'أدخل كود التاجر';
+    const lastCode = localStorage.getItem('lastCode') || '';
+    if(lastCode) $('code').value = lastCode;
 
-/* ====== تهيئة الحقول ====== */
-(function initUI(){
-  // استرجاع آخر دور/كود
-  const lastRole = localStorage.getItem('lastRole') || 'client';
-  $('role').value = lastRole;
-  $('code').placeholder = lastRole==='client' ? 'أدخل كود العميل' : 'أدخل كود التاجر';
-  const lastCode = localStorage.getItem('lastCode') || '';
-  if(lastCode) $('code').value = lastCode;
+    $('role').addEventListener('change', () => {
+      $('code').placeholder = ($('role').value==='client') ? 'أدخل كود العميل' : 'أدخل كود التاجر';
+      localStorage.setItem('lastRole', $('role').value);
+    });
+    $('code').addEventListener('keypress', e => { if(e.key==='Enter'){ $('loginBtn').click(); } });
+  })();
 
-  $('role').addEventListener('change', () => {
-    $('code').placeholder = ($('role').value==='client') ? 'أدخل كود العميل' : 'أدخل كود التاجر';
-    localStorage.setItem('lastRole', $('role').value);
-  });
+  // تسجيل الدخول
+  $('loginBtn').addEventListener('click', async (e)=>{
+    e.preventDefault();
+    msg('');
 
-  // Enter = دخول
-  $('code').addEventListener('keypress', e => { if(e.key==='Enter'){ $('loginBtn').click(); } });
-  $('code').focus();
-})();
+    const role = $('role').value;                       // client | merchant
+    const code = normalizeDigits($('code').value);
+    if(!code){ msg('أدخل الكود', true); $('code').focus(); return; }
 
-/* ====== تسجيل الدخول ====== */
-$('loginBtn').onclick = async () => {
-  const btn = $('loginBtn');
-  if(btn.disabled) return;
-
-  try{
-    say('');
-    const role = $('role').value;
-    let code = normalizeDigits($('code').value);
-    if(!code){ say('أدخل الكود', true); $('code').focus(); return; }
-
-    // حفظ آخر إدخال لراحة المستخدم
     localStorage.setItem('lastRole', role);
     localStorage.setItem('lastCode', code);
 
-    btn.disabled = true; const oldLabel = btn.textContent; btn.textContent = 'جاري التحقق...';
+    const btn=$('loginBtn'), old=btn.textContent;
+    btn.disabled=true; btn.textContent='جاري التحقق...';
 
-    const endpoint = (role==='client') ? '/api/login' : '/api/merchant/login';
-    const payload  = (role==='client') ? { client_code: code } : { merchant_code: code };
+    const url  = role==='merchant' ? '/api/merchant/login' : '/api/login';
+    const body = role==='merchant' ? { merchant_code: code } : { client_code: code };
 
-    const r = await fetch(endpoint, {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify(payload)
-    });
+    try{
+      const r = await fetch(url, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(body)
+      });
 
-    const txt = await r.text();
-    const j = parseJSON(txt);
+      const text = await r.text();
+      let data={}; try{ data = JSON.parse(text); }catch{}
+      if(!r.ok) throw new Error(data.error || ('HTTP '+r.status));
 
-    if(!r.ok){ throw new Error(j.error || ('HTTP '+r.status)); }
-
-    // خزن الرد كما هو + مفاتيح مفيدة ثابتة
-    if(role==='client'){
-      localStorage.setItem('clientLogin', JSON.stringify(j));
-      localStorage.setItem('x-client-code', String(j.code || j.client_code || code));
-      // إعادة توجيه (مع دعم ?r=/path)
-      const params = new URLSearchParams(location.search);
-      location.href = params.get('r') || '/index.html';
-    }else{
-      localStorage.setItem('merchantLogin', JSON.stringify(j));
-      localStorage.setItem('x-merchant-code', String(j.code || j.merchant_code || code));
-      const params = new URLSearchParams(location.search);
-      location.href = params.get('r') || '/merchant.html';
+      if(role==='merchant'){
+        localStorage.setItem('merchantLogin', JSON.stringify(data));
+        localStorage.setItem('x-merchant-code', String(data.code || code));
+        location.href = '/merchant.html';   // عدّل المسار إذا ملفّك مختلف
+      }else{
+        localStorage.setItem('clientLogin', JSON.stringify(data));
+        localStorage.setItem('x-client-code', String(data.code || code));
+        location.href = '/index.html';      // عدّل المسار إذا ملفّك مختلف
+      }
+    }catch(err){
+      msg(err.message || 'تعذر تسجيل الدخول', true);
+    }finally{
+      btn.disabled=false; btn.textContent=old;
     }
-  }catch(e){
-    say(e.message || 'تعذر تسجيل الدخول', true);
-  }finally{
-    $('loginBtn').disabled = false;
-    $('loginBtn').textContent = 'دخول';
-  }
-};
-</script>
-  <script>
-document.getElementById("loginBtn").addEventListener("click", async (e) => {
-  e.preventDefault();
-
-  const role = document.getElementById("role").value;     // "client" أو "merchant"
-  const code = document.getElementById("code").value.trim();
-
-  if (!code) return showMsg("رجاءً أدخل الكود", true);
-
-  // نحدد المسار حسب الدور
-  const url = role === "merchant" ? "/api/merchant/login" : "/api/login";
-
-  try {
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(role === "merchant" ? { merchant_code: code } : { client_code: code })
-    });
-
-    if (!resp.ok) {
-      const err = await safeJson(resp);
-      return showMsg(err.error || `HTTP ${resp.status}`, true);
-    }
-
-    const data = await resp.json();
-    // TODO: هنا وجّه المستخدم للصفحة المناسبة
-    // مثال:
-    if (role === "merchant") {
-      // خزن كود التاجر إذا تحتاجه
-      localStorage.setItem("merchant_code", data.code || code);
-      location.href = "/merchant.html";
-    } else {
-      localStorage.setItem("client_code", data.code || code);
-      location.href = "/client.html";
-    }
-  } catch (e2) {
-    showMsg(e2.message || "Network error", true);
-  }
-
-  async function safeJson(r){ try { return await r.json(); } catch { return {}; } }
-  function showMsg(msg, isErr){
-    const el = document.getElementById("msg");
-    el.textContent = msg;
-    el.style.color = isErr ? "#fca5a5" : "#a7f3d0";
-  }
-});
+  });
   </script>
 </body>
 </html>
