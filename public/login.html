@@ -59,7 +59,8 @@
             <option value="merchant">تاجر</option>
           </select>
           <input id="code" placeholder="أدخل كود العميل" autocomplete="one-time-code" inputmode="numeric" />
-          <button id="loginBtn">دخول</button>
+          <!-- أضفنا type="button" لمنع أي سلوك إرسال GET افتراضي -->
+          <button id="loginBtn" type="button">دخول</button>
         </div>
         <div class="muted" style="margin-top:8px">اختر الدور وأدخل الكود المخصص إلك.</div>
         <div id="msg" class="muted" style="margin-top:8px"></div>
@@ -96,9 +97,14 @@
   })();
   (function mountDriveGif(){
     const id='15NmI9__IIDtEGUrJG8O8grAU2feajcz6';
-    const gif=$('heroGif'); const tries=[`https://drive.google.com/uc?export=view&id=${id}`,`https://drive.google.com/uc?id=${id}`];
+    const gif=$('heroGif');
+    const tries=[
+      `https://drive.google.com/uc?export=view&id=${id}`,
+      `https://drive.google.com/uc?id=${id}`
+    ];
     let i=0; function load(){ if(i>=tries.length) return; gif.src=tries[i++]; }
-    gif.onload=()=>{ gif.style.display='block'; }; gif.onerror=load; load();
+    gif.onload=()=>{ gif.style.display='block'; };
+    gif.onerror=load; load();
   })();
 
   // تهيئة الحقول
@@ -123,7 +129,11 @@
 
     const role = $('role').value;                       // client | merchant
     const code = normalizeDigits($('code').value);
-    if(!code){ msg('أدخل الكود', true); $('code').focus(); return; }
+    if(!code){
+      msg('أدخل الكود', true);
+      $('code').focus();
+      return;
+    }
 
     localStorage.setItem('lastRole', role);
     localStorage.setItem('lastCode', code);
@@ -157,7 +167,8 @@
     }catch(err){
       msg(err.message || 'تعذر تسجيل الدخول', true);
     }finally{
-      btn.disabled=false; btn.textContent=old;
+      btn.disabled=false;
+      btn.textContent=old;
     }
   });
   </script>
